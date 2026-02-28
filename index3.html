@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Business Archetype Analyzer - ビジネス・アーキタイプ診断</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
+    body { font-family: 'Inter', 'Noto Sans JP', 'Helvetica Neue', Arial, sans-serif; }
+    
+    .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #020617; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+    /* 印刷時の設定（A4横・1ページにピタッと収める緻密なレイアウトを維持） */
+    @media print {
+      @page { size: A4 landscape; margin: 10mm; }
+      html, body {
+        height: 100% !important;
+        overflow: hidden !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        background: white !important;
+        margin: 0; padding: 0;
+      }
+      .no-print { display: none !important; }
+    }
+
+    button:focus-visible, input:focus-visible {
+      outline: 2px solid #2dd4bf;
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-200 antialiased print:bg-white print:text-slate-800">
+  <main id="app" class="min-h-screen flex flex-col items-center justify-center w-full"></main>
+
+  <script>
+    // --- 1. 最も安全なエスケープ関数（正規表現エラーを起こさない） ---
+    const escapeHtml = (str) => {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    };
+
+    // --- 2. データ定義 ---
+    const TRAIT_LABELS = {
+      O: '開放性', C: '誠実性', E: '外向性', A: '協調性', N: '情緒安定性',
+      R: '現実的', I: '研究的', Art: '芸術的', S: '社会的', Ent: '企業的', Con: '慣習的'
+    };
+
+    const ARCHETYPES = {
+      WOLF: { 
+        name: "Type: WOLF", role: "Strategic Pioneer (戦略的開拓者)", emoji: "🐺",
+        desc: "圧倒的な推進力と合理性で未踏の領域を切り拓くリーダー。感情や前例に流されず、目標達成への最短距離を論理的に導き出します。", 
+        detail: "【エビデンスに基づく適性分析】<br>■ <strong>基礎性格（Big Five）：</strong>「誠実性（達成志向）」が極めて高く、目標に対する強い執着と責任感を持ちます。対人関係では合理性を優先するため、時に冷徹に見られることもありますが、揺るぎない芯の強さが組織を牽引します。<br>■ <strong>行動特性（RIASEC）：</strong>「企業的（E）」領域が突出。組織のトップや新規事業開発において、リスクを取って利益や成果を追求する環境で最も輝きます。<br>■ <strong>コア・コンピタンス：</strong>「強力なリーダーシップ」「決断力」「逆境耐性」。困難な状況でも逃げずに意思決定を下す力があります。",
+        matches: [{ rank: 1, name: "Type: BEE", reason: "トップダウンの戦略を、完璧な実務能力で抜け漏れなく実行する最高の右腕となります。" }, { rank: 2, name: "Type: OWL", reason: "意思決定に必要な客観的データを提供し、ビジネスリスクを最小化してくれます。" }, { rank: 3, name: "Type: DOLPHIN", reason: "合理性を追求するあまり生じる摩擦を、高いソーシャルスキルでフォローします。" }]
+      },
+      DOLPHIN: { 
+        name: "Type: DOLPHIN", role: "Collaborative Catalyst (共創の推進者)", emoji: "🐬",
+        desc: "高い共感力とコミュニケーション能力で組織のサイロ化を防ぐ潤滑油。心理的安全性を構築し、チームのパフォーマンスを最大化します。", 
+        detail: "【エビデンスに基づく適性分析】<br>■ <strong>基礎性格（Big Five）：</strong>「外向性」と「協調性」のスコアが非常に高く、他者との関わりの中で組織のエンゲージメントを高めます。ステークホルダーの感情の機微に敏感で、コンフリクトの解消に長けています。<br>■ <strong>行動特性（RIASEC）：</strong>「社会的（S）」領域が適性。人事、カスタマーサクセス、教育など、人と直接関わり成長を促す役割に向いています。<br>■ <strong>コア・コンピタンス：</strong>「社会的知性（EQ）」「ファシリテーション」「利他性」。空気を読み、多様な価値観を統合する天才的なスキルを持っています。",
+        matches: [{ rank: 1, name: "Type: WOLF", reason: "マネジメントに欠けがちな推進力と決断力を補い、プロジェクトを力強く前へ進めてくれます。" }, { rank: 2, name: "Type: ELEPHANT", reason: "価値観が一致しているため、ストレスのない穏やかな協力体制を築けます。" }, { rank: 3, name: "Type: CHAMELEON", reason: "彼らのイノベーションの種を組織言語に翻訳して伝えることで変革が起きます。" }]
+      },
+      OWL: { 
+        name: "Type: OWL", role: "Deep Data Analyst (深淵なる分析者)", emoji: "🦉",
+        desc: "論理と分析を愛する知の探求者。物事の本質を見抜き、誰も気づかないボトルネックや解決策をデータから導き出します。", 
+        detail: "【エビデンスに基づく適性分析】<br>■ <strong>基礎性格（Big Five）：</strong>「開放性（知的好奇心）」と「誠実性」が高く、物事を表面で捉えず深く掘り下げる探求心を持っています。感情論を排し、ファクトベースで思考します。<br>■ <strong>行動特性（RIASEC）：</strong>「研究的（I）」領域が突出。複雑な問題を分析し、専門的な知識を活用して理論を構築するデータアナリストやリサーチャーが天職です。<br>■ <strong>コア・コンピタンス：</strong>「批判的思考（クリティカルシンキング）」「論理的推論」「向学心」。認知バイアスにとらわれず、多角的に物事を見極めます。",
+        matches: [{ rank: 1, name: "Type: HAWK", reason: "緻密なデータ分析を、経営的な大局観と結びつけて全社的な戦略へと昇華してくれます。" }, { rank: 2, name: "Type: WOLF", reason: "分析結果を絶対的なエビデンスとして、恐れずに実行へと移す突破力を持っています。" }, { rank: 3, name: "Type: BEAVER", reason: "立てた仮説や理論を、実際に手を動かしてプロトタイプとして具現化してくれます。" }]
+      },
+      BEE: { 
+        name: "Type: BEE", role: "Flawless Executor (完璧なる実行者)", emoji: "🐝",
+        desc: "高い計画性と協調性で、組織のオペレーションを支える実務のプロ。与えられたミッションを確実に、そして完璧に完遂します。", 
+        detail: "【エビデンスに基づく適性分析】<br>■ <strong>基礎性格（Big Five）：</strong>「誠実性（秩序・義務感）」が最も高く、コンプライアンスや期限を厳守します。「協調性」も高いため、チームのために己のタスクを全うする縁の下の力持ちです。<br>■ <strong>行動特性（RIASEC）：</strong>「慣習的（C）」領域が適性。プロジェクト管理、経理、バックオフィスなど、正確性と反復性が求められる環境で卓越した成果を出します。<br>■ <strong>コア・コンピタンス：</strong>「忍耐力」「正確性」「チームワーク」。誰もが嫌がる地道な作業でも、品質を落とさず完遂できる貴重な人材です。",
+        matches: [{ rank: 1, name: "Type: CHAMELEON", reason: "散らかりがちなアイデアを現実的なタスクとWBSに落とし込み、実現可能な形に整理します。" }, { rank: 2, name: "Type: WOLF", reason: "トップダウンの強い指示に対しても完璧なオペレーションで応える最強の実行部隊となります。" }, { rank: 3, name: "Type: DOLPHIN", reason: "タスクに集中しすぎて疲弊した際、精神的なケアとモチベーションの維持を行ってくれます。" }]
+      },
+      CHAMELEON: { 
+        name: "Type: CHAMELEON", role: "Agile Innovator (変幻自在の革新者)", emoji: "🦎",
+        desc: "豊かな想像力と柔軟性を持つイノベーター。常識や既存のフレームワークにとらわれず、新しいパラダイムを次々と生み出します。", 
+        detail: "【エビデンスに基づく適性分析】<br>■ <strong>基礎性格（Big Five）：</strong>「開放性（想像力・美的好奇心）」が圧倒的に高く、ルーティンや型にはまることを極端に嫌います。常に新しい刺激を求め、VUCA時代に適応する能力に長けています。<br>■ <strong>行動特性（RIASEC）：</strong>「芸術的（A）」領域が突出。デザイン、新規事業企画、マーケティングなど、ゼロイチで価値を生み出す環境が最適です。<br>■ <strong>コア・コンピタンス：</strong>「創造性」「水平思考（ラテラルシンキング）」「審美眼」。何もない状態から、人をあっと言わせるコンセプトを生み出します。",
+        matches: [{ rank: 1, name: "Type: BEE", reason: "抽象的なビジョンを現実的なスケジュールとタスクに落とし込んで形にしてくれる最高の相棒です。" }, { rank: 2, name: "Type: HAWK", reason: "奇抜なアイデアがビジネスとして成立するか俯瞰し、正しい市場へと導いてくれます。" }, { rank: 3, name: "Type: BEAVER", reason: "頭の中にある漠然としたイメージを、職人技で実際のプロダクトやシステムに作り上げてくれます。" }]
+      },
+      HAWK: { 
+        name: "Type: HAWK", role: "Panoramic Manager (俯瞰する大局観)", emoji: "🦅",
+        desc: "感情にブレず、常に組織全体をマクロな視点で見渡すマネージャー。危機的状況下でも冷静に、リソースの最適配分を行います。", 
+        detail: "【エビデンスに基づく適性分析】<br>■ <strong>基礎性格（Big Five）：</strong>「情緒安定性」と「誠実性」が高水準で両立しています。プレッシャーのかかる場面でもパニックにならず、メタ認知能力を活かして最適解を導き出します。<br>■ <strong>行動特性（RIASEC）：</strong>「企業的（E）」と「慣習的（C）」のハイブリッド。組織の仕組み作りや、全体最適を図る経営企画・マネジメント層に向いています。<br>■ <strong>コア・コンピタンス：</strong>「大局観」「公平性」「自己調整力」。個人の感情に流されず、組織全体にとっての正解を冷徹かつ的確に判断します。",
+        matches: [{ rank: 1, name: "Type: OWL", reason: "マネジメント判断を裏付けるための、緻密なデータ分析と論理的根拠を提供してくれます。" }, { rank: 2, name: "Type: CHAMELEON", reason: "管理する硬直化した組織に、停滞を打破する斬新なアイデアと風穴をもたらしてくれます。" }, { rank: 3, name: "Type: ELEPHANT", reason: "客観的に下した厳しい決定に対し、メンバーの感情的なケアを裏で行ってくれる重要なパートナーです。" }]
+      },
+      ELEPHANT: { 
+        name: "Type: ELEPHANT", role: "Steadfast Guardian (揺るぎない守護神)", emoji: "🐘",
+        desc: "圧倒的な包容力と高い倫理観で組織を守るメンター。ステークホルダーとの間に、長期的かつ強固なトラスト（信頼）を構築します。", 
+        detail: "【エビデンスに基づく適性分析】<br>■ <strong>基礎性格（Big Five）：</strong>「協調性」と「誠実性」が極めて高く、他者への深い思いやりと責任感を持ち合わせています。派手なパフォーマンスよりも、持続可能な関係性の構築を重んじます。<br>■ <strong>行動特性（RIASEC）：</strong>「社会的（S）」と「慣習的（C）」が適性。カスタマーサクセスや人事、医療・福祉など、長期的視野で人を支え育てる環境で輝きます。<br>■ <strong>コア・コンピタンス：</strong>「高潔さ（インテグリティ）」「寛容さ」「目的意識」。ブレない倫理観で、コーポレートガバナンスの良心として機能します。",
+        matches: [{ rank: 1, name: "Type: WOLF", reason: "守りに徹する分、オオカミが外へ向かって市場を開拓することで完璧な攻守のバランスが取れます。" }, { rank: 2, name: "Type: DOLPHIN", reason: "人を大切にする価値観が一致しているため、チームのエンゲージメントを最高レベルに保てます。" }, { rank: 3, name: "Type: HAWK", reason: "優しさが組織の甘さに繋がらないよう、客観的で公平な視点を提供し組織を引き締めてくれます。" }]
+      },
+      BEAVER: { 
+        name: "Type: BEAVER", role: "Dedicated Craftsman (黙々と創り上げる職人)", emoji: "🦫",
+        desc: "特定領域に没頭し、圧倒的な品質でプロダクトを生み出すスペシャリスト。自らの手を動かすことで最大のバリューを発揮します。", 
+        detail: "【エビデンスに基づく適性分析】<br>■ <strong>基礎性格（Big Five）：</strong>「誠実性（自己統制）」と「開放性（探求）」が高い職人肌。複雑な人間関係の構築よりも、自らの技術や専門性を磨き上げることに無上の喜びとエネルギーを感じます。<br>■ <strong>行動特性（RIASEC）：</strong>「現実的（R）」領域が突出。エンジニアリング、システム開発、アーキテクトなど、高度な技術を用いて具現化する仕事が天職です。<br>■ <strong>コア・コンピタンス：</strong>「グリット（やり抜く力）」「専門性」「熱意」。一度スイッチが入ると、圧倒的なクオリティのものを創り上げます。",
+        matches: [{ rank: 1, name: "Type: DOLPHIN", reason: "作る素晴らしいプロダクトのバリューを、対外的にわかりやすくアピールし市場に広めてくれます。" }, { rank: 2, name: "Type: CHAMELEON", reason: "突飛なビジョンを、確かな技術力で現実のシステムとして実装していくワクワクする関係です。" }, { rank: 3, name: "Type: OWL", reason: "モノづくりをする上でぶつかる技術的な壁に対し、理論的なアプローチで解決のヒントをくれます。" }]
+      }
+    };
+
+    const QUESTIONS = [
+      { theme: "プロジェクトのアプローチ", text: "全く未経験の新規プロジェクトを任されました。最初のアクションは？", options: [
+        { text: "専門書やデータを徹底的に調べ、基礎から論理を構築する", scores: { C: 2, I: 2 } },
+        { text: "まずは思いつくままに手を動かし、アジャイルに試行錯誤する", scores: { O: 2, Art: 2 } },
+        { text: "社内外の有識者を探し、直接ヒアリングを行って情報を集める", scores: { E: 2, S: 2 } },
+        { text: "最終ゴールと期限を確認し、逆算して無駄のないWBS（計画）を立てる", scores: { C: 2, Con: 2 } }
+      ]},
+      { theme: "危機管理", text: "チームのKPIが未達のピンチです。あなたが取りやすい行動は？", options: [
+        { text: "リスクを取ってでも自分が先頭に立ち、強力に数字を牽引する", scores: { Ent: 2, E: 1 } },
+        { text: "ボトルネックを冷静に分析し、システムや戦略を論理的に練り直す", scores: { I: 2, N: 1 } },
+        { text: "疲弊するメンバーをケアし、心理的安全性を回復させて離脱を防ぐ", scores: { A: 2, S: 2 } },
+        { text: "既存のルールや前提を疑い、誰も思いつかない打開策を提案する", scores: { O: 2, Art: 1 } }
+      ]},
+      { theme: "ファシリテーション", text: "重要な会議で誰も意見を出さず、沈黙が続いています。どうしますか？", options: [
+        { text: "自分が場を仕切り、メンバーに順番に意見を求めて議論を強制する", scores: { Ent: 2, E: 2 } },
+        { text: "突拍子もない極端なアイデアを投げて、議論の起爆剤（叩き台）にする", scores: { O: 2, Art: 2 } },
+        { text: "参加者が話しやすくなるよう、アイスブレイクを交えて空気を和ませる", scores: { E: 2, A: 2 } },
+        { text: "これまでの経緯や事実をホワイトボードに整理し、論点を可視化する", scores: { C: 2, I: 2 } }
+      ]},
+      { theme: "タスク実行", text: "絶対にミスの許されない重要なオペレーション作業を頼まれました。", options: [
+        { text: "マニュアルを完璧に遵守し、ダブルチェックをして正確にやり遂げる", scores: { C: 3, Con: 2 } },
+        { text: "どうすれば自動化・効率化できるか、ツールの導入や仕組み化を考える", scores: { R: 2, I: 2 } },
+        { text: "その作業が「誰の役に立つか」という意義を意識してモチベーションを保つ", scores: { A: 2, S: 2 } },
+        { text: "環境を変えたり時間を区切ったりして、ゲーム感覚で乗り切る", scores: { O: 2, E: 1 } }
+      ]},
+      { theme: "タイムマネジメント", text: "自身のキャパシティを超える大量のタスクを抱えてしまいました。どう処理しますか？", options: [
+        { text: "優先順位を厳密にマトリクス化し、上から順番に淡々とこなす", scores: { C: 2, Con: 2 } },
+        { text: "人に任せられるものは即座に交渉・委譲し、自分の負担を減らす", scores: { Ent: 2, E: 2 } },
+        { text: "個々の完成度を下げてでも、全体の進行と期限の遵守を優先する", scores: { N: 2, Ent: 1 } },
+        { text: "一つひとつのタスクの品質にこだわり、納得いくまで丁寧に仕上げる", scores: { C: 2, R: 2 } }
+      ]},
+      { theme: "コンフリクト（対立）解消", text: "チーム内でAさんとBさんの意見が真っ向から対立しました。", options: [
+        { text: "感情論は排除し、どちらの案がデータ的に正しいか客観的に判定する", scores: { I: 2, N: 1 } },
+        { text: "両者の言い分を個別に聞き、お互いが納得できる折衷案を探る", scores: { A: 3, S: 2 } },
+        { text: "全く次元の違う「第3のアイデア」を出して対立自体を無効化する", scores: { O: 2, Art: 2 } },
+        { text: "責任者として、全体最適の観点から自分が最終的な決断を下し従わせる", scores: { Ent: 3, E: 1 } }
+      ]},
+      { theme: "ネットワーキング", text: "初対面の人ばかりの異業種交流会に参加しました。", options: [
+        { text: "積極的に名刺交換を行い、ビジネスチャンスや人脈を広げようとする", scores: { E: 3, Ent: 2 } },
+        { text: "全体を観察し、専門的な話ができそうな少人数とだけ深く話す", scores: { I: 2, C: 1 } },
+        { text: "ぽつんとしている人を見つけて、孤立しないよう優しく声をかける", scores: { A: 2, S: 2 } },
+        { text: "会場の空間デザインや提供される食事など、クリエイティブな部分を楽しむ", scores: { O: 2, Art: 2 } }
+      ]},
+      { theme: "メンタリング", text: "後輩から「仕事がうまくいかない」と相談されました。", options: [
+        { text: "具体的な改善プロセスやフレームワークを提示し、論理的に指導する", scores: { I: 2, C: 2 } },
+        { text: "まずは相手の感情に寄り添い、じっくりと話を聞いて傾聴・共感する", scores: { A: 2, S: 3 } },
+        { text: "「自分も昔はそうだった」と笑い話にして、ポジティブに励ます", scores: { E: 2, A: 1 } },
+        { text: "後輩の隠れた才能を見抜き、既存の枠にとらわれない新しい役割を与える", scores: { Ent: 2, N: 1 } }
+      ]},
+      { theme: "組織論", text: "あなたが最も「強い組織」だと感じるのはどれ？", options: [
+        { text: "全員が高い専門性を持ち、プロフェッショナルとして自立している組織", scores: { I: 2, R: 2 } },
+        { text: "心理的安全性が高く、フラットで何でも本音で話し合える組織", scores: { A: 2, S: 2 } },
+        { text: "強力なビジョンを持つトップの下で、統率された動きができる組織", scores: { Ent: 2, Con: 2 } },
+        { text: "多様性が尊重され、常に新しいイノベーションが生まれ続ける組織", scores: { O: 3, Art: 2 } }
+      ]},
+      { theme: "自己認識", text: "自分の企画案を上司に否定された時、内面でどう感じやすいですか？", options: [
+        { text: "「なぜ否定されたのか」その論理的なエビデンスをすぐに知りたくなる", scores: { I: 2, C: 1 } },
+        { text: "一瞬ムッとするが、「経営視点では一理ある」とメタ認知で受け入れる", scores: { N: 3, O: 1 } },
+        { text: "人格まで否定されたようで傷つくが、関係悪化を恐れて引き下がる", scores: { A: 2, Con: 1 } },
+        { text: "「じゃあこんなアプローチはどう？」と、すぐに別のアイデアをぶつけ返す", scores: { O: 2, E: 2 } }
+      ]},
+      { theme: "インプット", text: "書店で、ビジネスへのインスピレーションを得るために向かうコーナーは？", options: [
+        { text: "経営戦略・経済・マーケティング", scores: { Ent: 3, C: 1 } },
+        { text: "テクノロジー・科学・専門書", scores: { I: 3, O: 1 } },
+        { text: "デザイン・アート・思想・哲学", scores: { Art: 3, O: 2 } },
+        { text: "心理学・組織論・ヒューマンリソース", scores: { S: 3, A: 1 } }
+      ]},
+      { theme: "学習スタイル", text: "新しいスキルを獲得する時、最も効率が良いと感じる方法は？", options: [
+        { text: "他者とディスカッションしたり、人に教えたりしながら学ぶ", scores: { E: 2, S: 2 } },
+        { text: "体系化されたテキストやマニュアルを順序立てて網羅的に学ぶ", scores: { C: 3, Con: 2 } },
+        { text: "とにかく現場に出て、手を動かしながら実践（OJT）で覚える", scores: { R: 3, Ent: 1 } },
+        { text: "複数の異なる分野の知識を抽象化し、自分なりの理論を構築する", scores: { O: 2, I: 2 } }
+      ]},
+      { theme: "モチベーション", text: "仕事において、あなたが最もアドレナリンが出る瞬間は？", options: [
+        { text: "自らの戦略が見事に当たり、競合に勝ち大きな利益を出した時", scores: { Ent: 3, E: 1 } },
+        { text: "複雑な課題のボトルネックを特定し、本質的な真理を理解した時", scores: { I: 3, O: 1 } },
+        { text: "ゼロから生み出したプロダクトや企画が、市場に大きなインパクトを与えた時", scores: { Art: 3, O: 2 } },
+        { text: "チーム全員で困難を乗り越え、共に成長と達成感を分かち合った時", scores: { S: 3, A: 2 } }
+      ]},
+      { theme: "リソース投資", text: "自由に使える100万円の自己投資予算があったら？", options: [
+        { text: "資格取得や金融投資など、将来のキャリア・資産形成に堅実に使う", scores: { C: 3, Con: 2 } },
+        { text: "行き先も決めず、インスピレーションを求めて世界中を視察・放浪する", scores: { O: 3, Art: 1 } },
+        { text: "NPOへの寄付や、ステークホルダーをもてなすためのイベントに使う", scores: { A: 2, S: 3 } },
+        { text: "最新のハイスペック機材やツールを買い揃え、ひたすら研究に没頭する", scores: { R: 3, I: 2 } }
+      ]},
+      { theme: "ルーツ", text: "子どもの頃、どんな遊びに熱中していましたか？", options: [
+        { text: "みんなを集めてルールを決め、リーダー役として場を仕切る", scores: { Ent: 3, E: 2 } },
+        { text: "プラモデルやブロックなど、黙々と何かを構造的に作り上げる", scores: { R: 3, C: 2 } },
+        { text: "図鑑を読んだり、虫や植物の生態を細かく観察・分析する", scores: { I: 3, O: 1 } },
+        { text: "おままごとやごっこ遊びなど、想像力を使うストーリー性のある遊び", scores: { Art: 3, A: 2 } }
+      ]},
+      { theme: "意思決定", text: "ビジネス上の重大な決断を迫られた時、何を最も重視しますか？", options: [
+        { text: "過去のデータ、市場調査、客観的なファクト（事実）", scores: { I: 2, C: 2 } },
+        { text: "自分の直感や、「世の中を変えられるか」というビジョン", scores: { O: 3, Art: 2 } },
+        { text: "その決断が、顧客や従業員にどのような感情的影響を与えるか", scores: { A: 2, S: 2 } },
+        { text: "多少のリスクを背負ってでも、得られるリターン（ROI）が大きいか", scores: { Ent: 3, E: 1 } }
+      ]},
+      { theme: "ストレス要因", text: "最もパフォーマンスが低下する（ストレスを感じる）環境は？", options: [
+        { text: "前例踏襲やマニュアルに縛られ、裁量権や自由が全くない環境", scores: { O: 2, Art: 2 } },
+        { text: "非論理的なトップダウンがまかり通り、感情論で意思決定される環境", scores: { I: 3, C: 1 } },
+        { text: "常に社内政治や競争があり、他者を蹴落とさなければならない環境", scores: { A: 3, S: 2 } },
+        { text: "自分の影響力が及ばず、ただ歯車として他人の指示に従うだけの環境", scores: { Ent: 3, R: 1 } }
+      ]},
+      { theme: "リカバリー", text: "激務の後、最もエネルギーが回復する過ごし方は？", options: [
+        { text: "一人で情報を遮断し、誰ともコミュニケーションをとらず静かに過ごす", scores: { I: 2, N: 1 } },
+        { text: "友人や家族と出かけ、ワイワイ賑やかに過ごして発散する", scores: { E: 3, S: 2 } },
+        { text: "タスクの整理や部屋の掃除をして、環境をコントロール下に置く", scores: { C: 3, Con: 2 } },
+        { text: "大自然の中に出かけたり、サウナやスポーツで物理的に体を動かす", scores: { R: 3, N: 2 } }
+      ]},
+      { theme: "行動指針", text: "ビジネスにおける座右の銘にするなら？", options: [
+        { text: "「神は細部に宿る」（緻密な探求と論理）", scores: { I: 3, O: 1 } },
+        { text: "「三方良し」（ステークホルダーとの共栄）", scores: { A: 2, S: 3 } },
+        { text: "「Done is better than perfect.」（実行とスピード）", scores: { Ent: 3, E: 2 } },
+        { text: "「温故知新」（プロセスと確実性の重視）", scores: { Con: 3, C: 2 } }
+      ]},
+      { theme: "総括", text: "最後に。あなたが今後のキャリアで最も発揮したい「コア・バリュー」は？", options: [
+        { text: "どんな壁も突破し、組織を牽引する「実行力とリーダーシップ」", scores: { Ent: 5, E: 3 } },
+        { text: "誰も思いつかないパラダイムを生み出す「創造力と革新性」", scores: { O: 5, Art: 5 } },
+        { text: "物事の本質を見抜き、最適解を導く「分析力と探求心」", scores: { I: 5, C: 3 } },
+        { text: "関わる人々をエンパワーメントする「共感力と協調性」", scores: { A: 5, S: 5 } }
+      ]}
+    ];
+
+    // --- 3. メインアプリケーション ---
+    class AptitudeAnalyzer {
+      constructor(containerId) {
+        this.container = document.getElementById(containerId);
+        // 古いバグデータを読み込まないようキーを変更
+        this.STORAGE_KEY = 'baa_save_v3'; 
+        this.state = this.getInitialState();
+      }
+
+      getInitialState() {
+        return {
+          step: 'START',
+          currentQuestionIndex: 0,
+          userName: "",
+          scores: { O: 0, C: 0, E: 0, A: 0, N: 0, R: 0, I: 0, Art: 0, S: 0, Ent: 0, Con: 0 },
+          answerHistory: [],
+          pctScores: {}, 
+          top3Traits: [], 
+          resultArchetype: null,
+          subType: null
+        };
+      }
+
+      init() {
+        this.render();
+      }
+
+      // --- 安全なデータ保存・読み込み処理 ---
+      hasSavedData() {
+        try { return localStorage.getItem(this.STORAGE_KEY) !== null; } 
+        catch(e) { return false; }
+      }
+
+      saveProgress() {
+        try { localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.state)); } 
+        catch (e) { /* 何もしない */ }
+      }
+      
+      loadProgress() {
+        try {
+          const saved = localStorage.getItem(this.STORAGE_KEY);
+          if (saved) {
+            this.state = JSON.parse(saved);
+            this.render();
+          }
+        } catch (e) { /* 何もしない */ }
+      }
+
+      clearProgress() {
+        try { localStorage.removeItem(this.STORAGE_KEY); } catch(e) {}
+      }
+
+      // --- 診断ロジック ---
+      handleStart() {
+        this.state = this.getInitialState(); // 念のため状態を完全リセット
+        
+        const inputElement = document.getElementById('user-name');
+        if (inputElement) {
+          const rawVal = inputElement.value.trim();
+          if (rawVal.length > 20) {
+            alert("エラー：お名前は20文字以内で入力してください。");
+            return;
+          }
+          this.state.userName = rawVal ? rawVal : "Guest"; 
+        }
+        
+        this.state.step = 'QUESTION';
+        this.saveProgress();
+        this.render();
+      }
+
+      handleAnswer(optionScores) {
+        if (!optionScores) return;
+
+        this.state.answerHistory.push(optionScores);
+        for (let key in optionScores) {
+          if (this.state.scores[key] !== undefined) {
+            this.state.scores[key] += optionScores[key];
+          }
+        }
+
+        if (this.state.currentQuestionIndex + 1 < QUESTIONS.length) {
+          this.state.currentQuestionIndex++;
+          this.saveProgress();
+          this.render();
+        } else {
+          this.calculateResult();
+          this.clearProgress(); 
+          this.state.step = 'RESULT';
+          this.render();
+        }
+      }
+
+      goBack() {
+        if (this.state.currentQuestionIndex > 0) {
+          const lastScores = this.state.answerHistory.pop();
+          if (lastScores) {
+            for (let key in lastScores) {
+              if (this.state.scores[key] !== undefined) {
+                this.state.scores[key] -= lastScores[key];
+              }
+            }
+          }
+          this.state.currentQuestionIndex--;
+          this.saveProgress();
+          this.render();
+        }
+      }
+
+      calculateResult() {
+        let maxScores = { O: 0, C: 0, E: 0, A: 0, N: 0, R: 0, I: 0, Art: 0, S: 0, Ent: 0, Con: 0 };
+        QUESTIONS.forEach(q => {
+          let qMax = { O: 0, C: 0, E: 0, A: 0, N: 0, R: 0, I: 0, Art: 0, S: 0, Ent: 0, Con: 0 };
+          q.options.forEach(opt => {
+            for (let key in opt.scores) {
+              if (opt.scores[key] > qMax[key]) qMax[key] = opt.scores[key];
+            }
+          });
+          for (let key in qMax) maxScores[key] += qMax[key];
+        });
+
+        let pctScores = {};
+        for (let key in this.state.scores) {
+          pctScores[key] = maxScores[key] > 0 ? Math.round((this.state.scores[key] / maxScores[key]) * 100) : 0;
+        }
+        this.state.pctScores = pctScores;
+
+        const sortedTraits = Object.entries(pctScores).sort((a, b) => b[1] - a[1]);
+        this.state.top3Traits = sortedTraits.slice(0, 3).map(t => `${TRAIT_LABELS[t[0]]} (${t[1]}%)`);
+
+        const results = [
+          { type: ARCHETYPES.WOLF, score: (pctScores.Ent + pctScores.C) / 2 },
+          { type: ARCHETYPES.DOLPHIN, score: (pctScores.S + pctScores.E + pctScores.A) / 3 },
+          { type: ARCHETYPES.OWL, score: (pctScores.I + pctScores.C) / 2 },
+          { type: ARCHETYPES.BEE, score: (pctScores.Con + pctScores.A) / 2 },
+          { type: ARCHETYPES.CHAMELEON, score: (pctScores.Art + pctScores.O) / 2 },
+          { type: ARCHETYPES.HAWK, score: (pctScores.Ent + pctScores.N) / 2 },
+          { type: ARCHETYPES.ELEPHANT, score: (pctScores.S + pctScores.C + pctScores.A) / 3 },
+          { type: ARCHETYPES.BEAVER, score: (pctScores.R + pctScores.C) / 2 }
+        ];
+        results.sort((a, b) => b.score - a.score);
+        this.state.resultArchetype = results[0].type;
+        
+        const scoreDiff = results[0].score - results[1].score;
+        if (scoreDiff <= 8) {
+          this.state.subType = { type: results[1].type, diff: Math.round(scoreDiff) };
+        } else {
+          this.state.subType = null;
+        }
+      }
+
+      copyResult() {
+        if (!this.state.resultArchetype) return;
+        const typeName = this.state.resultArchetype.name.replace('Type: ', '');
+        let text = `私のビジネス・アーキタイプは「${typeName}」でした！\n`;
+        text += `🎯コア強み Top3: ${this.state.top3Traits.join(', ')}\n`;
+        
+        try {
+          navigator.clipboard.writeText(text).then(() => {
+            alert("結果をコピーしました！");
+          }).catch(() => {
+            alert("コピーに失敗しました。\n\n" + text);
+          });
+        } catch(e) {
+          alert("この環境ではコピーできません。\n\n" + text);
+        }
+      }
+
+      // --- 4. 描画・イベント制御（最も安全な形に分離） ---
+      render() {
+        if (!this.container) return;
+
+        try {
+          this.container.innerHTML = '';
+          
+          if (this.state.step === 'RESULT') {
+            document.body.className = "bg-slate-50 text-slate-800 antialiased print:bg-white print:text-slate-800";
+          } else {
+            document.body.className = "bg-slate-950 text-slate-200 antialiased print:bg-white print:text-slate-800";
+          }
+
+          if (this.state.step === 'START') {
+            this.container.innerHTML = this.getStartHtml();
+            this.attachStartListeners();
+          } else if (this.state.step === 'QUESTION') {
+            this.container.innerHTML = this.getQuestionHtml();
+            this.attachQuestionListeners();
+          } else if (this.state.step === 'RESULT') {
+            this.container.innerHTML = this.getResultHtml();
+            this.attachResultListeners();
+          }
+        } catch(err) {
+          // 万が一エラーが起きても画面が白くならず、赤い枠で原因を通知します
+          this.container.innerHTML = `<div class="p-8 border-2 border-red-500 bg-red-900 text-white rounded-lg">システムエラーが発生しました: ${escapeHtml(err.message)}</div>`;
+        }
+      }
+
+      attachStartListeners() {
+        const startBtn = document.getElementById('start-btn');
+        if (startBtn) {
+          startBtn.onclick = (e) => {
+            e.preventDefault();
+            this.handleStart();
+          };
+        }
+
+        const loadBtn = document.getElementById('load-btn');
+        if (loadBtn) {
+          loadBtn.onclick = (e) => {
+            e.preventDefault();
+            this.loadProgress();
+          };
+        }
+
+        // Enterキーによる意図せぬフォーム送信・ページリロードを強制ブロック
+        const inputElement = document.getElementById('user-name');
+        if (inputElement) {
+          inputElement.onkeydown = (e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              this.handleStart();
+            }
+          };
+        }
+      }
+
+      attachQuestionListeners() {
+        const btns = this.container.querySelectorAll('.option-btn');
+        const currentQ = QUESTIONS[this.state.currentQuestionIndex];
+        
+        btns.forEach((btn, idx) => {
+          btn.onclick = (e) => {
+            e.preventDefault();
+            if (currentQ && currentQ.options[idx]) {
+              this.handleAnswer(currentQ.options[idx].scores);
+            }
+          };
+        });
+
+        const backBtn = document.getElementById('back-btn');
+        if (backBtn) {
+          backBtn.onclick = (e) => {
+            e.preventDefault();
+            this.goBack();
+          };
+        }
+
+        const qTitle = document.getElementById(`question-title-${this.state.currentQuestionIndex}`);
+        if (qTitle) {
+          qTitle.tabIndex = -1;
+          qTitle.focus();
+        }
+      }
+
+      attachResultListeners() {
+        // XSSを完全に防ぐため、innerHTMLではなくtextContentで名前を注入
+        const nameDisplays = document.querySelectorAll('.display-user-name');
+        nameDisplays.forEach(el => { el.textContent = this.state.userName; });
+
+        const restartBtn = document.getElementById('restart-btn');
+        if (restartBtn) {
+          restartBtn.onclick = (e) => {
+            e.preventDefault();
+            this.state = this.getInitialState();
+            this.render();
+          };
+        }
+
+        const copyBtn = document.getElementById('copy-btn');
+        if (copyBtn) {
+          copyBtn.onclick = (e) => {
+            e.preventDefault();
+            this.copyResult();
+          };
+        }
+
+        // Chart描画を少し遅らせることで、DOMが存在しないエラーを回避
+        setTimeout(() => {
+          this.renderCharts();
+        }, 10);
+      }
+
+      // --- HTML生成 ---
+      getStartHtml() {
+        const hasSave = this.hasSavedData();
+        return `
+          <section class="fade-in flex items-center justify-center p-4 w-full h-full">
+            <div class="bg-slate-900 rounded-lg shadow-2xl p-8 md:p-12 max-w-2xl w-full border border-slate-800">
+              <h1 class="text-2xl md:text-3xl font-bold text-white mb-4 text-center tracking-wide">
+                Business Archetype Analyzer
+              </h1>
+              <div class="border-b border-teal-600 w-full mb-8"></div>
+              
+              <div class="mb-6">
+                <label class="block text-teal-400 text-xs font-bold mb-2 uppercase tracking-wide" for="user-name">NAME / 受検者氏名</label>
+                <input type="text" id="user-name" autocomplete="off" placeholder="氏名を入力してください（未入力の場合はGuest）" class="appearance-none bg-slate-800 border border-slate-700 rounded w-full py-3 px-4 text-slate-200 leading-tight focus:outline-none focus:ring-2 focus:ring-teal-500">
+              </div>
+
+              <div class="bg-slate-800/50 border-l-4 border-teal-500 rounded p-6 mb-8 text-sm text-slate-300">
+                <h2 class="text-teal-400 font-bold mb-4 text-base flex items-center">
+                  <span class="w-2 h-2 bg-teal-400 mr-2"></span> Assessment Methodology
+                </h2>
+                <p class="mb-3 text-slate-300">本アセスメントは、パーソナリティ心理学と職業選択理論に基づく2領域・11の行動特性パラメーターから適性を算出します。</p>
+                <ul class="space-y-1 mb-5 pl-2">
+                  <li>・<span class="font-bold text-slate-200">基礎性格 (Big Five)</span>：開放性、誠実性、外向性、協調性、情緒安定性</li>
+                  <li>・<span class="font-bold text-slate-200">ワークスタイル (RIASEC)</span>：現実的、研究的、芸術的、社会的、企業的、慣習的</li>
+                </ul>
+                <div class="flex flex-wrap gap-2 mb-6">
+                  <span class="border border-slate-600 text-slate-400 px-2 py-1 rounded text-xs">Situational Judgment Test</span>
+                  <span class="border border-slate-600 text-slate-400 px-2 py-1 rounded text-xs">11次元マッピング</span>
+                  <span class="border border-slate-600 text-slate-400 px-2 py-1 rounded text-xs">0-100% 正規化エンジン</span>
+                </div>
+                <div class="border border-slate-700 bg-slate-900 p-4 rounded text-xs text-slate-400">
+                  <span class="font-bold text-teal-500">【重要な前提】</span>本システムは、行動特性と職務要件のヒューリスティックな関連付けに基づく自己分析ツールです。特定の母集団に対する統計的な予測妥当性を完全に保証するものではありません。
+                </div>
+              </div>
+
+              <div class="text-center mt-8 flex flex-col items-center space-y-4">
+                <button type="button" id="start-btn" class="w-full sm:w-auto bg-teal-600 hover:bg-teal-500 text-white font-bold py-3 px-10 rounded transition-colors text-sm tracking-wide focus:outline-none">
+                  アセスメントを開始する
+                </button>
+                ${hasSave ? `
+                  <button type="button" id="load-btn" class="w-full sm:w-auto text-slate-400 hover:text-white underline text-sm transition-colors focus:outline-none">
+                    前回の続きから再開する
+                  </button>
+                ` : ''}
+              </div>
+            </div>
+          </section>
+        `;
+      }
+
+      getQuestionHtml() {
+        const qIndex = this.state.currentQuestionIndex;
+        const currentQ = QUESTIONS[qIndex];
+        const progress = ((qIndex) / QUESTIONS.length) * 100;
+
+        const optionsHtml = currentQ.options.map((opt, idx) => `
+          <button type="button" class="option-btn w-full text-left p-5 border border-slate-700 bg-slate-900 rounded hover:border-teal-500 hover:bg-slate-800 focus:outline-none transition-all font-medium text-slate-300 text-sm md:text-base cursor-pointer" aria-describedby="question-title-${qIndex}">
+            ${escapeHtml(opt.text)}
+          </button>
+        `).join('');
+
+        const backBtnHtml = qIndex > 0 
+          ? `<button type="button" id="back-btn" class="text-slate-500 hover:text-teal-400 text-sm flex items-center transition-colors focus:outline-none">
+              <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg> 前の設問に戻る
+             </button>`
+          : `<div></div>`;
+
+        return `
+          <section class="fade-in max-w-2xl w-full mx-auto p-4 pt-8 md:pt-12" aria-labelledby="question-title-${qIndex}">
+            <div class="w-full bg-slate-800 h-2 mb-8 rounded-full overflow-hidden" role="progressbar" aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100">
+              <div class="bg-teal-500 h-full transition-all duration-300 ease-out" style="width: ${progress}%"></div>
+            </div>
+            <div class="bg-slate-900 rounded-lg shadow-xl p-6 md:p-10 border border-slate-800">
+              <div class="flex items-center justify-between mb-6">
+                <span class="bg-slate-800 text-teal-400 text-xs px-3 py-1 rounded border border-slate-700 focus:outline-none" aria-live="polite">
+                  Q${qIndex + 1}. ${escapeHtml(currentQ.theme)}
+                </span>
+                <span class="text-slate-500 text-xs font-mono">${qIndex + 1} / ${QUESTIONS.length}</span>
+              </div>
+              <h2 id="question-title-${qIndex}" class="text-lg md:text-xl font-bold text-white mb-8 leading-relaxed focus:outline-none">${escapeHtml(currentQ.text)}</h2>
+              <div class="space-y-3 flex flex-col" role="group" aria-label="選択肢">${optionsHtml}</div>
+              
+              <div class="mt-8 pt-4 border-t border-slate-800 flex justify-between items-center">
+                ${backBtnHtml}
+              </div>
+            </div>
+          </section>
+        `;
+      }
+
+      getResultHtml() {
+        const result = this.state.resultArchetype;
+        const subType = this.state.subType; 
+        const today = new Date();
+        const dateStr = `${today.getFullYear()}/${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}`;
+
+        // matches用のHTML生成
+        const matchesHtml = result.matches.map(match => {
+          let matchData;
+          for(let key in ARCHETYPES) {
+            if(ARCHETYPES[key].name === match.name) matchData = ARCHETYPES[key];
+          }
+          if(!matchData) return ''; // 安全装置
+          
+          return `
+            <div class="flex items-center py-2 border-b border-slate-100 last:border-b-0 print:py-1.5">
+              <div class="w-12 h-12 rounded bg-slate-50 border border-slate-200 flex flex-col items-center justify-center mr-4 flex-shrink-0">
+                <span class="text-xl leading-none">${matchData.emoji}</span>
+                <span class="text-[9px] font-bold text-slate-500 mt-1">Rank ${match.rank}</span>
+              </div>
+              <div class="flex-1">
+                <h4 class="font-bold text-slate-900 text-sm print:text-[13px] mb-1">${escapeHtml(match.name)}</h4>
+                <p class="text-xs print:text-[11px] text-slate-600 leading-relaxed m-0">${escapeHtml(match.reason)}</p>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        return `
+          <section class="fade-in max-w-[1000px] mx-auto p-4 md:py-8 w-full print:max-w-none print:w-full print:p-0 print:m-0">
+            <div class="bg-white p-8 md:p-12 print:p-6 border border-slate-200 print:border-none rounded shadow-sm print:shadow-none">
+              
+              <div class="flex flex-col md:flex-row print:flex-row border-b border-slate-200 pb-8 mb-8 print:pb-6 print:mb-6">
+                <div class="flex flex-col md:w-1/3 print:w-1/3 border-r border-slate-200 pr-8 print:pr-6 justify-center relative">
+                  <div class="absolute top-0 left-0 text-left w-full">
+                    <p class="text-teal-600 text-[10px] font-mono tracking-widest">${dateStr}</p>
+                    <p class="text-slate-900 text-sm font-bold mt-1 display-user-name"></p>
+                  </div>
+                  <div class="text-center mt-10 print:mt-8">
+                    <div class="text-6xl print:text-5xl mb-4 print:mb-3">${result.emoji}</div>
+                    <p class="text-[10px] text-slate-500 font-bold tracking-[0.2em] mb-2">ANALYZED ARCHETYPE</p>
+                    
+                    <h2 class="text-3xl print:text-2xl font-black text-slate-900 mb-2 tracking-tight">${escapeHtml(result.name)}</h2>
+                    
+                    ${subType && subType.type ? `<div class="mb-2"><span class="inline-block bg-teal-50 text-teal-700 text-[10px] px-2 py-0.5 rounded border border-teal-200 font-bold tracking-wide">Sub-type: ${escapeHtml(subType.type.name.replace('Type: ', ''))} 傾向あり (差分: ${subType.diff}%)</span></div>` : ''}
+                    
+                    <p class="text-sm print:text-xs text-slate-700 font-bold mb-6 print:mb-4">${escapeHtml(result.role)}</p>
+                    <div class="bg-slate-50 p-4 rounded border border-slate-200 w-full text-left">
+                      <p class="text-xs text-slate-800 leading-relaxed font-medium m-0">${escapeHtml(result.desc)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="flex flex-col md:flex-row print:flex-row md:w-2/3 print:w-2/3 justify-around items-center pl-8 print:pl-6 gap-6">
+                  <article class="flex flex-col w-full md:w-1/2 print:w-1/2 justify-center">
+                    <h3 class="text-center font-bold text-slate-800 mb-4 print:mb-2 text-sm print:text-xs tracking-wide">
+                      基礎パラメーター (Big Five)
+                    </h3>
+                    <div class="w-full relative h-64 print:h-[220px]">
+                      <canvas id="chart1" style="width: 100%; height: 100%;"></canvas>
+                    </div>
+                  </article>
+                  <article class="flex flex-col w-full md:w-1/2 print:w-1/2 justify-center mt-8 md:mt-0 print:mt-0">
+                    <h3 class="text-center font-bold text-slate-800 mb-4 print:mb-2 text-sm print:text-xs tracking-wide">
+                      ワークスタイル適性 (RIASEC)
+                    </h3>
+                    <div class="w-full relative h-64 print:h-[220px]">
+                      <canvas id="chart2" style="width: 100%; height: 100%;"></canvas>
+                    </div>
+                  </article>
+                </div>
+              </div>
+
+              <div class="bg-slate-50 border border-slate-200 rounded p-4 mb-8 print:mb-6 text-center text-sm print:text-xs text-slate-700 page-break-inside-avoid">
+                <span class="font-bold mr-2 text-teal-700">あなたのコア特性 Top 3 :</span> 
+                <span class="font-mono bg-white px-2 py-1 rounded border border-slate-200 shadow-sm mx-1">${escapeHtml(this.state.top3Traits[0])}</span>
+                <span class="font-mono bg-white px-2 py-1 rounded border border-slate-200 shadow-sm mx-1">${escapeHtml(this.state.top3Traits[1])}</span>
+                <span class="font-mono bg-white px-2 py-1 rounded border border-slate-200 shadow-sm mx-1">${escapeHtml(this.state.top3Traits[2])}</span>
+              </div>
+
+              <div class="flex flex-col md:flex-row print:flex-row gap-10 print:gap-8">
+                <article class="md:w-1/2 print:w-1/2 flex flex-col page-break-inside-avoid">
+                  <h3 class="text-lg print:text-base font-bold text-slate-900 mb-4 print:mb-3 flex items-center border-b border-slate-200 pb-2 tracking-wide">
+                    詳細分析レポート
+                  </h3>
+                  <div class="text-slate-700 leading-relaxed space-y-3 text-sm print:text-xs">
+                    ${result.detail} 
+                  </div>
+                </article>
+
+                <article class="md:w-1/2 print:w-1/2 flex flex-col page-break-inside-avoid">
+                  <h3 class="text-lg print:text-base font-bold text-slate-900 mb-4 print:mb-3 flex items-center border-b border-slate-200 pb-2 tracking-wide">
+                    シナジー適性（ビジネス相性）
+                  </h3>
+                  <div class="flex flex-col justify-start gap-3 print:gap-2">
+                    ${matchesHtml}
+                  </div>
+                </article>
+              </div>
+
+              <div class="mt-12 text-center flex flex-col sm:flex-row justify-center items-center gap-4 print:hidden">
+                <button type="button" onclick="window.print()" class="w-full sm:w-auto bg-teal-600 hover:bg-teal-500 text-white font-bold py-3 px-8 rounded transition-all shadow-md text-sm focus:outline-none">
+                  結果をPDF保存・印刷
+                </button>
+                <button type="button" id="copy-btn" class="w-full sm:w-auto bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 px-8 rounded transition-all shadow-md text-sm focus:outline-none">
+                  テキストで結果をコピー
+                </button>
+                <button type="button" id="restart-btn" class="w-full sm:w-auto bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold py-3 px-8 rounded transition-all text-sm focus:outline-none">
+                  再診断を行う
+                </button>
+              </div>
+              
+            </div>
+          </section>
+        `;
+      }
+
+      renderCharts() {
+        // Chartインスタンスの安全な破棄
+        if (typeof Chart !== 'undefined') {
+          const existingChart1 = Chart.getChart("chart1");
+          if (existingChart1) existingChart1.destroy();
+          const existingChart2 = Chart.getChart("chart2");
+          if (existingChart2) existingChart2.destroy();
+
+          const { pctScores } = this.state;
+          const color1 = { bg: "rgba(20, 184, 166, 0.25)", border: "rgba(20, 184, 166, 1)", point: "rgba(20, 184, 166, 1)" };
+          const color2 = { bg: "rgba(14, 165, 233, 0.25)", border: "rgba(14, 165, 233, 1)", point: "rgba(14, 165, 233, 1)" };
+
+          const getChartConfig = (labels, data, colorInfo) => ({
+            type: 'radar',
+            data: {
+              labels: labels,
+              datasets: [{
+                data: data,
+                backgroundColor: colorInfo.bg,
+                borderColor: colorInfo.border,
+                borderWidth: 2,
+                pointBackgroundColor: colorInfo.point,
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 3,
+                fill: true
+              }]
+            },
+            options: {
+              animation: false,
+              responsive: true,
+              maintainAspectRatio: false, 
+              scales: { 
+                r: { 
+                  min: 0, 
+                  max: 100, 
+                  ticks: { display: false, stepSize: 20 },
+                  grid: { color: 'rgba(0, 0, 0, 0.08)' },
+                  angleLines: { color: 'rgba(0, 0, 0, 0.08)' },
+                  pointLabels: { 
+                    font: { size: 10, family: "'Inter', 'Noto Sans JP', 'Helvetica Neue', Arial, sans-serif", weight: '700' }, 
+                    color: '#475569' 
+                  }
+                } 
+              },
+              plugins: { 
+                legend: { display: false },
+                tooltip: {
+                  backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                  padding: 10,
+                  cornerRadius: 4,
+                  displayColors: false,
+                  callbacks: { label: (context) => `Score: ${context.raw}%` }
+                }
+              }
+            }
+          });
+
+          const canvas1 = document.getElementById('chart1');
+          const canvas2 = document.getElementById('chart2');
+
+          if (canvas1 && canvas2) {
+            new Chart(canvas1.getContext('2d'), getChartConfig(
+              [['開放性\n(創造)'], ['誠実性\n(計画)'], ['外向性\n(発信)'], ['協調性\n(共感)'], ['情緒安定\n(冷静)']],
+              [pctScores.O, pctScores.C, pctScores.E, pctScores.A, pctScores.N],
+              color1
+            ));
+
+            new Chart(canvas2.getContext('2d'), getChartConfig(
+              [['現実的\n(R)'], ['研究的\n(I)'], ['芸術的\n(A)'], ['社会的\n(S)'], ['企業的\n(E)'], ['慣習的\n(C)']],
+              [pctScores.R, pctScores.I, pctScores.Art, pctScores.S, pctScores.Ent, pctScores.Con],
+              color2
+            ));
+          }
+        }
+      }
+    }
+
+    // --- アプリケーション起動 ---
+    document.addEventListener('DOMContentLoaded', () => {
+      const app = new AptitudeAnalyzer('app');
+      app.init();
+    });
+  </script>
+</body>
+</html>

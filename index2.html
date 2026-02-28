@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Professional Aptitude Analyzer</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --s-color: #d63031;
+            --a-color: #e67e22;
+            --b-color: #27ae60;
+            --c-color: #7f8c8d;
+            --bg: #f0f2f5;
+        }
+
+        body, html {
+            margin: 0; padding: 0; min-height: 100%;
+            font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+            background-color: var(--bg); color: #333;
+        }
+
+        .screen { display: none; width: 100%; box-sizing: border-box; }
+        .active { display: block; }
+        .flex-center { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; }
+
+        #cover-screen { background: linear-gradient(135deg, #2c3e50 0%, #000000 100%); color: white; text-align: center; padding: 40px 20px; }
+        .cover-content { max-width: 780px; padding: 40px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.4); border-radius: 15px; }
+        .cover-content h1 { font-size: 32px; margin-bottom: 20px; letter-spacing: 2px; border-bottom: 1px solid var(--accent); display: inline-block; padding-bottom: 10px; }
+        
+        .user-input-box { margin-bottom: 25px; text-align: left; }
+        .user-input-box label { display: block; font-size: 14px; margin-bottom: 8px; color: var(--accent); font-weight: bold; }
+        .user-input-box input { width: 100%; padding: 12px; border-radius: 5px; border: none; font-size: 16px; box-sizing: border-box; background: rgba(255,255,255,0.9); }
+
+        .evidence-box { text-align: left; background: rgba(255,255,255,0.1); padding: 25px; border-radius: 8px; margin-bottom: 30px; font-size: 13.5px; line-height: 1.7; border-left: 5px solid var(--accent); }
+        .evidence-box h3 { margin-top: 0; color: var(--accent); font-size: 17px; margin-bottom: 12px; }
+        .evidence-list { list-style: none; padding: 0; margin: 0 0 15px 0; }
+        .evidence-list li { margin-bottom: 5px; padding-left: 15px; position: relative; }
+        .evidence-list li::before { content: "・"; position: absolute; left: 0; color: var(--accent); }
+        
+        .psychometrics-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        .p-tag { background: rgba(52, 152, 219, 0.2); border: 1px solid rgba(52, 152, 219, 0.5); padding: 3px 8px; border-radius: 4px; font-size: 11px; }
+
+        .disclaimer-box { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; padding: 12px 15px; margin-top: 15px; font-size: 12px; color: rgba(255,255,255,0.7); line-height: 1.6; }
+        .disclaimer-box strong { color: rgba(255,255,255,0.9); }
+
+        #assessment-screen { padding: 40px 20px; background-color: var(--bg); }
+        .assessment-container { max-width: 850px; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); margin: 0 auto; }
+        .q-row { padding: 20px 0; border-bottom: 1px solid #eee; }
+        .q-row:last-child { border-bottom: none; }
+        .q-text { font-weight: 500; font-size: 15px; margin-bottom: 15px; line-height: 1.5; color: #222; }
+        
+        .options-scale { display: flex; justify-content: space-between; max-width: 500px; gap: 10px; }
+        .options-scale label { font-size: 11px; text-align: center; flex: 1; cursor: pointer; color: #555; }
+        .options-scale input { display: block; margin: 0 auto 5px; transform: scale(1.2); }
+
+        .options-sjt { display: flex; flex-direction: column; gap: 10px; }
+        .options-sjt label { display: flex; align-items: flex-start; gap: 12px; background: #f8f9fa; padding: 12px 15px; border-radius: 6px; border: 1px solid #e0e0e0; font-size: 13.5px; cursor: pointer; transition: 0.2s; }
+        .options-sjt label:hover { background: #eef2f5; border-color: #ccc; }
+        .options-sjt input { margin-top: 3px; transform: scale(1.2); flex-shrink: 0; }
+
+        #result-screen { min-height: 100vh; background: #f0f2f5; padding: 20px; box-sizing: border-box; display: none; flex-direction: column; align-items: center; gap: 20px; }
+        #result-screen.active { display: flex; }
+
+        .print-page { background: #fff; width: 280mm; min-height: 185mm; padding: 15px 20px; box-sizing: border-box; box-shadow: 0 4px 15px rgba(0,0,0,0.1); position: relative; display: flex; flex-direction: column; }
+
+        .report-info { position: absolute; top: 15px; right: 25px; text-align: right; font-size: 11px; color: #666; line-height: 1.4; }
+        .report-header { text-align: center; margin-bottom: 10px; border-bottom: 2px solid var(--primary); padding-top: 5px; }
+        .report-header h2 { margin: 5px 0; font-size: 22px; color: var(--primary); }
+
+        .reliability-indicator { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.3); }
+        .rel-green { background-color: #2ecc71; }
+        .rel-yellow { background-color: #f1c40f; }
+        .rel-red { background-color: #e74c3c; }
+
+        .report-grid { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr); gap: 12px; flex: 1; min-height: 0; }
+        .report-card { border: 1px solid #ddd; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        .card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 2px solid rgba(0,0,0,0.05); padding-bottom: 5px; }
+        .cat-title { font-size: 15px; font-weight: bold; color: var(--primary); }
+        .rank-tag { font-size: 16px; font-weight: bold; padding: 2px 12px; border-radius: 4px; color: white; display: inline-block; }
+
+        .sec-label { font-size: 10px; font-weight: bold; margin-top: 6px; color: var(--accent); letter-spacing: 0.5px; text-transform: uppercase; }
+        .sec-body { font-size: 11px; line-height: 1.45; color: #333; margin-top: 2px; flex: 1; }
+
+        .card-s { border-top: 6px solid var(--s-color); background-color: #fff8f8 !important; }
+        .card-a { border-top: 6px solid var(--a-color); background-color: #fffbf2 !important; }
+        .card-b { border-top: 6px solid var(--b-color); background-color: #f7fff7 !important; }
+        .card-c { border-top: 6px solid var(--c-color); background-color: #fafafa !important; }
+
+        .score-bars { margin: 6px 0 4px; }
+        .score-bar-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+        .score-bar-label { font-size: 9.5px; color: #666; width: 52px; flex-shrink: 0; text-align: right; }
+        .score-bar-track { flex: 1; height: 6px; background: #e8e8e8; border-radius: 3px; overflow: hidden; }
+        .score-bar-fill { height: 100%; border-radius: 3px; transition: width 0.8s ease; }
+        .score-bar-val { font-size: 9px; color: #888; width: 26px; flex-shrink: 0; }
+
+        .page-2-content { display: flex; gap: 20px; flex: 1; margin-top: 10px; }
+        .radar-container { flex: 1; background: #fafafa; border: 1px solid #ddd; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-direction: column; padding: 15px; }
+        .radar-title { font-size: 14px; font-weight: bold; color: var(--primary); margin-bottom: 10px; text-align: center; }
+        
+        .top3-container { flex: 1.5; display: flex; flex-direction: column; gap: 12px; justify-content: space-between; }
+        .top3-card { border: 1px solid #ddd; border-radius: 6px; padding: 15px; background: #fff; position: relative; overflow: hidden; }
+        .top3-rank-label { position: absolute; top: 0; left: 0; background: var(--accent); color: white; font-size: 11px; font-weight: bold; padding: 3px 12px; border-bottom-right-radius: 6px; }
+        .top3-card.rank-1 { border-left: 6px solid #f1c40f; }
+        .top3-card.rank-1 .top3-rank-label { background: #f1c40f; color: #333; }
+        .top3-card.rank-2 { border-left: 6px solid #bdc3c7; }
+        .top3-card.rank-2 .top3-rank-label { background: #bdc3c7; color: #333; }
+        .top3-card.rank-3 { border-left: 6px solid #cd7f32; }
+        .top3-card.rank-3 .top3-rank-label { background: #cd7f32; }
+        
+        .top3-header { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 10px; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .top3-title { font-size: 18px; font-weight: bold; color: var(--primary); margin: 0; }
+        .top3-score { font-size: 16px; font-weight: bold; color: #666; }
+        .top3-score span { font-size: 24px; color: var(--accent); }
+        .top3-reason { font-size: 12px; line-height: 1.6; color: #333; }
+
+        .btn { padding: 12px 40px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.2s; }
+        .btn-start { background: var(--accent); color: white; }
+        .btn-analyze { background: var(--primary); color: white; width: 100%; margin-top: 30px; font-size: 18px; }
+        .btn-footer { background: #eee; color: #333; font-size: 12px; padding: 10px 25px; }
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+
+        @media print {
+            @page { size: A4 landscape; margin: 8mm; }
+            .no-print { display: none !important; }
+            body, html { background: white; height: auto; margin: 0; padding: 0; }
+            #result-screen { padding: 0; gap: 0; display: block !important; }
+            .print-page { width: 100%; height: 185mm; box-shadow: none; padding: 0; page-break-after: always; }
+            .print-page:last-child { page-break-after: auto; }
+            .report-grid { gap: 8px !important; }
+            .report-card { border: 1px solid #eee; page-break-inside: avoid; }
+            .sec-body { font-size: 10px; }
+            .reliability-indicator, .score-bar-fill, .top3-card, .top3-rank-label, .rank-tag { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="cover-screen" class="screen flex-center active">
+    <div class="cover-content">
+        <h1>Professional Aptitude Analyzer</h1>
+        <div class="user-input-box">
+            <label for="user-name">NAME / 受検者氏名</label>
+            <input type="text" id="user-name" placeholder="氏名を入力してください" autocomplete="off">
+        </div>
+        <div class="evidence-box">
+            <h3>■ Assessment Methodology</h3>
+            本システムは、以下の3領域・12の行動特性パラメーターに基づき、実務適性を算出します。
+            <ul class="evidence-list">
+                <li><b>思考特性:</b> 概念構造化、論理的推論、多角俯瞰、詳細完遂</li>
+                <li><b>行動源泉:</b> 達成執着、不確実許容、自己規律、知的探究</li>
+                <li><b>対人スタイル:</b> 共感察知、対人交渉、情緒安定、他者動機</li>
+            </ul>
+            <div class="psychometrics-tags">
+                <span class="p-tag">SJT多次元動的配分スコアリング</span>
+                <span class="p-tag">逆転項目(Reverse-scored items)</span>
+                <span class="p-tag">偽装尺度二段階層化シャッフル</span>
+                <span class="p-tag">カテゴリ真の最大値・正規化エンジン</span>
+            </div>
+            <div class="disclaimer-box">
+                <strong>【重要な前提】</strong> 本アセスメントは、一般的な職務定義と行動特性の<strong>ヒューリスティックな関連付けに基づくエキスパートモデル</strong>です。特定の母集団に対する<strong>統計的な予測妥当性を保証するものではありません</strong>。
+            </div>
+        </div>
+        <button class="btn btn-start" onclick="startAssessment()">アセスメントを開始する</button>
+    </div>
+</div>
+
+<div id="assessment-screen" class="screen">
+    <div class="assessment-container">
+        <h2 style="text-align:center; margin-top:0; color:var(--primary);">行動特性アセスメント (全40問)</h2>
+        <p style="text-align:center; font-size:13px; color:#666; margin-bottom: 30px;">直感に従って、現在の自分、または自分が取るであろう行動に最も近いものを選択してください。</p>
+        <div id="q-list"></div>
+        <button class="btn btn-analyze" id="analyze-btn" onclick="runAnalysis()">分析を実行し、レポートを生成</button>
+    </div>
+</div>
+
+<div id="result-screen" class="screen">
+    <div class="print-page" id="page-1">
+        <div class="report-info">
+            <span class="print-date-display"></span><br>
+            Candidate: <span class="print-name-display" style="font-weight:bold;"></span><br>
+            <span class="reliability-indicator rel-signal" title="Response Reliability Index"></span>
+        </div>
+        <div class="report-header">
+            <h2>実務適性・プロフェッショナル・リポート (1/2)</h2>
+        </div>
+        <div id="report-grid" class="report-grid"></div>
+    </div>
+
+    <div class="print-page" id="page-2">
+        <div class="report-info">
+            <span class="print-date-display"></span><br>
+            Candidate: <span class="print-name-display" style="font-weight:bold;"></span><br>
+            <span class="reliability-indicator rel-signal" title="Response Reliability Index"></span>
+        </div>
+        <div class="report-header">
+            <h2>総合プロファイル ＆ 推奨実務領域 Top 3 (2/2)</h2>
+        </div>
+        <div class="page-2-content">
+            <div class="radar-container">
+                <div class="radar-title">行動特性 12パラメーター・バランス</div>
+                <div id="radar-chart-area"></div>
+            </div>
+            <div class="top3-container" id="top3-area"></div>
+        </div>
+    </div>
+
+    <div class="no-print" style="text-align: center; margin-bottom: 30px;">
+        <button class="btn btn-footer" onclick="window.print()">レポートを保存(PDF/印刷)</button>
+        <button class="btn btn-footer" style="margin-left: 10px;" onclick="location.reload()">トップに戻る</button>
+    </div>
+</div>
+
+<script>
+// ============================================================
+// 画面遷移
+// ============================================================
+function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => {
+        s.classList.remove('active', 'flex-center');
+        s.style.display = 'none';
+    });
+    const target = document.getElementById(id);
+    target.classList.add('active');
+    if (id === 'result-screen') {
+        target.style.display = 'flex';
+    } else if (id === 'cover-screen') {
+        target.classList.add('flex-center');
+        target.style.display = 'flex';
+    } else {
+        target.style.display = 'block';
+    }
+    window.scrollTo(0, 0);
+}
+
+function startAssessment() {
+    if (!document.getElementById('user-name').value.trim()) {
+        alert("氏名を入力してください。");
+        return;
+    }
+    showScreen('assessment-screen');
+}
+
+// ============================================================
+// 定数・マスターデータ
+// ============================================================
+const PARAMS = [
+    "abstract","logical","birdseye","detail",
+    "driven","risk","discipline","curiosity",
+    "empathy","assertive","stability","motivate"
+];
+
+// [修正①] questionDefs は純粋な定義のみ。id は実行時に付与しない。
+// シャッフル後のコピーオブジェクトに対してのみ id を付与することで
+// 元定義オブジェクトへの汚染（シャローコピー問題）を防ぐ。
+const questionDefs = [
+    { param: 'abstract', type: 'normal',  text: 'バラバラに見える情報の中から、共通のパターンや法則性を見つけるのが得意だ。' },
+    { param: 'abstract', type: 'reverse', text: '抽象的な議論よりも、目の前の具体的な作業をこなす方が好きだ。' },
+    { type: 'sjt', text: '業界の新しいトレンドに関する断片的なニュースを複数読んだとき、あなたはどうしますか？', options: [
+        { text: 'それぞれ別々のニュースとして記憶にとどめる',                         v: { detail: 3 } },
+        { text: '似たようなニュースを分類して整理する',                               v: { abstract: 3, logical: 2 } },
+        { text: 'ニュース同士の繋がりから「次に何が起きるか」の仮説を立てる',         v: { abstract: 5, risk: 2 } }
+    ]},
+    { param: 'logical', type: 'normal',  text: '他人の意見に対しても、感情ではなく「論理的に筋が通っているか」で判断する。' },
+    { param: 'logical', type: 'reverse', text: 'データを分析するより、自分の直感や経験を信じて決断することが多い。' },
+    { type: 'sjt', text: 'チームの意見が真っ二つに割れました。どのように結論を出しますか？', options: [
+        { text: '多数決、またはリーダーの権限で強制的に決める',                       v: { driven: 3, stability: 2 } },
+        { text: '両方の意見を取り入れた、折衷案（妥協点）を探る',                     v: { empathy: 4, logical: 2 } },
+        { text: '双方の根拠となる前提条件を洗い出し、矛盾点がないか検証する',         v: { logical: 5, birdseye: 3 } }
+    ]},
+    { param: 'birdseye', type: 'normal',  text: 'トラブルが起きても目先のことだけでなく、組織全体や将来への影響を考える。' },
+    { param: 'birdseye', type: 'reverse', text: '自分の担当業務に集中しすぎて、他部署の動きが見えなくなることがある。' },
+    { type: 'sjt', text: '自社の製品にクレームが入りました。あなたの最初のアクションは？', options: [
+        { text: '目の前の顧客に謝罪し、代替品をすぐに送る',                           v: { empathy: 4, detail: 2 } },
+        { text: 'クレームの内容を製造部門に伝え、原因究明を依頼する',                 v: { logical: 3, birdseye: 2 } },
+        { text: '顧客の不満の根本原因を考え、製品企画やマニュアル全体を見直す契機にする', v: { birdseye: 5, abstract: 3 } }
+    ]},
+    { param: 'detail', type: 'normal',  text: '契約書や数値データの細かなミスに、無意識に気づくことが多い。' },
+    { param: 'detail', type: 'reverse', text: '全体の方向性が合っていれば、細かい手順やルールの抜け漏れは気にしない。' },
+    { type: 'sjt', text: '重要なプレゼン資料が完成しました。提出直前のあなたの行動は？', options: [
+        { text: '全体のストーリーが通っているかだけざっと確認して提出する',           v: { birdseye: 4 } },
+        { text: '誤字脱字がないか、一通り目を通してから提出する',                     v: { detail: 3 } },
+        { text: '数値の根拠、フォントの統一、レイアウトのズレまで完璧にチェックする', v: { detail: 5, discipline: 3 } }
+    ]},
+    { param: 'driven', type: 'normal',  text: '目標が設定されると、何が何でも達成しないと気が済まない。' },
+    { param: 'driven', type: 'reverse', text: '高い目標を追いかけるより、無理のないペースで平穏に働きたい。' },
+    { type: 'sjt', text: '今期の営業目標にわずかに届かないまま、最終日を迎えました。', options: [
+        { text: '「ここまで頑張ったから仕方ない」と割り切り、来期の準備をする',       v: { stability: 4, birdseye: 2 } },
+        { text: '既存顧客に連絡し、少しでも追加発注がもらえないか頼んでみる',         v: { driven: 3, empathy: 3 } },
+        { text: '可能性が1%でもあれば、未接触リストも含め最後までアプローチする',     v: { driven: 5, risk: 3 } }
+    ]},
+    { param: 'risk', type: 'normal',  text: '正解がわからない状況での決断を、ストレスではなくチャンスだと感じる。' },
+    { param: 'risk', type: 'reverse', text: '前例やマニュアルがない新しい業務を任されると、不安で動けなくなる。' },
+    { type: 'sjt', text: '誰も成功したことのない新規プロジェクトのリーダーに指名されました。', options: [
+        { text: 'リスクが高すぎるため、理由をつけて辞退する',                         v: { stability: 3 } },
+        { text: '他社の類似事例を徹底的に調査し、安全が確認できてから始める',         v: { detail: 4, logical: 3 } },
+        { text: 'まずは小さく実行して仮説検証を繰り返し、走りながら軌道修正する',     v: { risk: 5, abstract: 3 } }
+    ]},
+    { param: 'discipline', type: 'normal',  text: '毎日のルーチンワークを欠かさずこなすことに苦痛を感じない。' },
+    { param: 'discipline', type: 'reverse', text: '気分によって仕事のパフォーマンスや集中力が大きく変わってしまう。' },
+    { type: 'sjt', text: 'リモートワーク中、今日は監視の目もなく、納期にも余裕があります。', options: [
+        { text: 'リフレッシュのため、今日は仕事のペースを落として適当に過ごす',       v: { discipline: 1 } },
+        { text: '最低限のタスクだけ終わらせて、残りの時間は自分の勉強などにあてる',   v: { curiosity: 4, discipline: 2 } },
+        { text: '出社時と変わらないスケジュールで、予定していたタスクをきっちり消化する', v: { discipline: 5, driven: 2 } }
+    ]},
+    { param: 'curiosity', type: 'normal',  text: '「なぜそうなるのか」という仕組みを理解すること自体に大きな喜びを感じる。' },
+    { param: 'curiosity', type: 'reverse', text: '実務ですぐに使えない理論や技術について深く学ぶのは時間の無駄だと思う。' },
+    { type: 'sjt', text: '業務で新しいソフトウェアを導入することになりました。', options: [
+        { text: 'マニュアルの必須項目だけを読み、言われた通りに操作する',             v: { discipline: 3 } },
+        { text: '自分が使う機能について、効率的な使い方をネットで検索してみる',       v: { logical: 3, curiosity: 2 } },
+        { text: '頼まれてもいないのに、裏側の仕様や応用機能まで徹底的に調べ尽くす',   v: { curiosity: 5, detail: 3 } }
+    ]},
+    { param: 'empathy', type: 'normal',  text: '相手が言葉にしていない「不満」や「期待」を察知するのが早い。' },
+    { param: 'empathy', type: 'reverse', text: '他人がなぜ怒っているのか、あるいは落ち込んでいるのか理解できないことが多い。' },
+    { type: 'sjt', text: '後輩が「大丈夫です」と言いながら、少し疲れた顔で作業しています。', options: [
+        { text: '本人が大丈夫と言っているので、そのまま任せて自分の仕事に戻る',       v: { discipline: 3 } },
+        { text: '「無理するなよ」と軽く声をかけ、進捗だけ確認する',                   v: { logical: 3, empathy: 2 } },
+        { text: '作業のキリが良いところでコーヒーに誘い、雑談を交えながら本当の状況を聞く', v: { empathy: 5, motivate: 3 } }
+    ]},
+    { param: 'assertive', type: 'normal',  text: '意見が対立する場面でも、怯まずに自分の主張を伝え、落とし所を見つけられる。' },
+    { param: 'assertive', type: 'reverse', text: '相手の機嫌を損ねるくらいなら、自分が我慢して相手に合わせた方が楽だ。' },
+    { type: 'sjt', text: '他部署から、明らかに理不尽なスケジュールでの依頼が来ました。', options: [
+        { text: '関係を悪化させたくないので、無理をしてでも引き受ける',               v: { stability: 2 } },
+        { text: '「今回は特別ですよ」と恩を着せつつ引き受ける',                       v: { assertive: 3, logical: 2 } },
+        { text: '引き受けられない理由をデータで示し、代替のスケジュールを論理的に提案する', v: { assertive: 5, logical: 4 } }
+    ]},
+    { param: 'stability', type: 'normal',  text: '予期せぬトラブルやプレッシャーがかかる場面でも、常に冷静でいられる。' },
+    { param: 'stability', type: 'reverse', text: '自分の思い通りに物事が進まないと、イライラして周囲に態度で示してしまう。' },
+    { type: 'sjt', text: 'あなたの重大なミスで、プロジェクトがストップしてしまいました。', options: [
+        { text: 'パニックになり、どう言い訳するか、誰のせいにするかを考えてしまう',   v: { stability: 1 } },
+        { text: 'ひたすら落ち込み、上司に平謝りする',                                 v: { empathy: 3 } },
+        { text: '感情を切り離し、即座に被害を最小限に抑えるリカバリープランの立案に集中する', v: { stability: 5, logical: 3 } }
+    ]},
+    { param: 'motivate', type: 'normal',  text: '自分の成功よりも、メンバーが成長したり活躍したりすることに喜びを感じる。' },
+    { param: 'motivate', type: 'reverse', text: 'チームの面倒を見るよりも、自分個人のスキルや成績を上げることに集中したい。' },
+    { type: 'sjt', text: 'チームのメンバーが、初めての大きなプレゼンを控えて緊張しています。', options: [
+        { text: '「失敗しても命を取られるわけじゃない」と精神論で励ます',             v: { assertive: 3 } },
+        { text: 'プレゼンの資料を自分が代わりに修正してあげる',                       v: { driven: 3, detail: 3 } },
+        { text: '本番を想定したリハーサルに付き合い、具体的にフィードバックする',     v: { motivate: 5, empathy: 3 } }
+    ]},
+    { param: 'lie', type: 'lie', text: 'これまで生きてきて、一度も嘘をついたり、ごまかしたりしたことは絶対にない。' },
+    { param: 'lie', type: 'lie', text: '他人の発言や態度に対して、イラッとしたり不満を持ったりしたことは一度もない。' },
+    { param: 'lie', type: 'lie', text: '今まで、自分の利益のためにルールを曲げようと考えたことすら一度もない。' },
+    { param: 'lie', type: 'lie', text: '自分のミスや失敗を、他人のせいにしようとしたことはこれまでの人生で一度もない。' }
+];
+
+// ============================================================
+// シャッフル
+// ============================================================
+function fisherYates(arr) {
+    const res = [...arr];
+    for (let i = res.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [res[i], res[j]] = [res[j], res[i]];
+    }
+    return res;
+}
+
+// [修正⑤] 端数チェック付き二段階層化シャッフル
+function stratifiedShuffle(questions) {
+    const lie   = questions.filter(q => q.type === 'lie');
+    const sjt   = fisherYates(questions.filter(q => q.type === 'sjt'));
+    const scale = fisherYates(questions.filter(q => q.type === 'normal' || q.type === 'reverse'));
+    const BLOCK_COUNT = 4;
+
+    // 端数チェック（問題構成を変更した場合の無言バグを防止）
+    if (sjt.length % BLOCK_COUNT !== 0 || scale.length % BLOCK_COUNT !== 0 || lie.length !== BLOCK_COUNT) {
+        console.warn(
+            `[stratifiedShuffle] 問題数がブロック数(${BLOCK_COUNT})で割り切れません。` +
+            ` SJT:${sjt.length}, Scale:${scale.length}, Lie:${lie.length}`
+        );
+    }
+
+    const blocks = Array.from({ length: BLOCK_COUNT }, () => []);
+    sjt.forEach((q, i)   => blocks[i % BLOCK_COUNT].push(q));
+    scale.forEach((q, i) => blocks[i % BLOCK_COUNT].push(q));
+    lie.forEach((q, i)   => blocks[i % BLOCK_COUNT].push(q));
+
+    return blocks.flatMap(b => fisherYates(b));
+}
+
+// [修正①] シャッフル後のコピーにのみ id を付与（questionDefs 本体を汚染しない）
+const shuffledQuestions = stratifiedShuffle(questionDefs).map((q, idx) => ({
+    ...q,
+    options: q.options ? q.options.map(o => ({ ...o })) : undefined,
+    id: 'q_' + idx
+}));
+
+// ============================================================
+// 設問描画
+// ============================================================
+const qList = document.getElementById('q-list');
+shuffledQuestions.forEach((q, index) => {
+    const div = document.createElement('div');
+    div.className = 'q-row';
+    let html = `<div class="q-text">Q${index + 1}. ${q.text}</div>`;
+    if (q.type === 'sjt') {
+        html += `<div class="options-sjt">`;
+        q.options.forEach((opt, j) => {
+            // [修正④] value ではなく data-idx で管理（型安全な参照）
+            html += `<label><input type="radio" name="${q.id}" data-idx="${j}"> ${opt.text}</label>`;
+        });
+        html += `</div>`;
+    } else {
+        html += `<div class="options-scale">
+            <label><input type="radio" name="${q.id}" value="1">全く<br>違う</label>
+            <label><input type="radio" name="${q.id}" value="2">違う</label>
+            <label><input type="radio" name="${q.id}" value="3">どちらでも<br>ない</label>
+            <label><input type="radio" name="${q.id}" value="4">近い</label>
+            <label><input type="radio" name="${q.id}" value="5">非常に<br>近い</label>
+        </div>`;
+    }
+    div.innerHTML = html;
+    qList.appendChild(div);
+});
+
+// ============================================================
+// マスター定義
+// ============================================================
+const categoryWeights = [
+    { id: 'sales',      name: '市場開拓・リレーション',   weights: { driven: 0.35, assertive: 0.30, empathy: 0.20, risk: 0.15 } },
+    { id: 'planning',   name: '事業構想・価値創造',       weights: { abstract: 0.35, risk: 0.30, curiosity: 0.20, logical: 0.15 } },
+    { id: 'management', name: '組織統率・マネジメント',   weights: { motivate: 0.35, birdseye: 0.30, stability: 0.20, logical: 0.15 } },
+    { id: 'alliance',   name: '戦略交渉・アライアンス',   weights: { logical: 0.35, assertive: 0.30, birdseye: 0.20, stability: 0.15 } },
+    { id: 'operation',  name: '基盤運用・オペレーション', weights: { discipline: 0.40, detail: 0.30, stability: 0.20, logical: 0.10 } },
+    { id: 'analysis',   name: '専門探求・ナレッジ分析',   weights: { curiosity: 0.35, logical: 0.30, detail: 0.20, abstract: 0.15 } }
+];
+
+const LIE_SENSITIVE_PARAMS = new Set([
+    'empathy','discipline','stability','motivate','birdseye','curiosity','driven'
+]);
+
+const PARAM_LABELS = {
+    abstract:   '概念構造化', logical:    '論理的推論', birdseye:   '多角俯瞰',  detail:     '詳細完遂',
+    driven:     '達成執着',   risk:       '不確実許容', discipline: '自己規律',  curiosity:  '知的探究',
+    empathy:    '共感察知',   assertive:  '対人交渉',   stability:  '情緒安定',  motivate:   '他者動機'
+};
+
+const PARAM_EXPERT_DICT = {
+    abstract:   { strong: "事象から本質的なパターンを見抜く力",             perf: "複雑な情報を整理しビジネス構造を定義する能力",             weak: "抽象概念の構造化への苦手さ",               risk: "目先の具体事象にとらわれ全体像を見失う傾向",             over: "抽象論に終始し実行プランへの落とし込みが遅れるリスク" },
+    logical:    { strong: "感情に流されない筋道の通った推論力",             perf: "客観的なデータに基づく意思決定を主導する能力",             weak: "論理的な整合性を担保することへの苦手さ",             risk: "直感に頼った属人的な判断に陥りやすい傾向",               over: "正論を突き通すあまり他者の感情的納得感を損なうリスク" },
+    birdseye:   { strong: "全体最適を意識したマクロな視点",                 perf: "部門間の利害を調整し波及効果を見越した判断能力",           weak: "マクロ視点で影響を予測することへの苦手さ",             risk: "自部署や目前のタスクに埋没しボトルネックを見落とす傾向", over: "全体最適を優先しすぎ現場の細かな負担を軽視するリスク" },
+    detail:     { strong: "微細なミスを見逃さない精緻な遂行力",             perf: "品質管理などミスの許されないプロセスでの安定した推進力",   weak: "細部への注意力と正確性の不足",                         risk: "抜け漏れが発生しやすく後工程での手戻りを誘発する傾向",   over: "完璧主義に陥り全体の進行スピードを阻害するリスク" },
+    driven:     { strong: "目標達成に対する圧倒的な執着心",                 perf: "困難な条件下でも最後までやり抜き結果にコミットする能力",   weak: "目標達成に対する執着の弱さ",                           risk: "困難に直面した際、安易な妥協点に落ち着きやすい傾向",     over: "成果を焦るあまりプロセスや周囲との関係性を犠牲にするリスク" },
+    risk:       { strong: "不確実な状況を楽しむ大胆な決断力",               perf: "前例のないプロジェクトでのアジリティ高い実行能力",         weak: "未知の状況に対応することへの苦手意識",                 risk: "前例がない状況で意思決定が極端に遅れる傾向",             over: "リスク検証を軽視し無謀な見切り発車を繰り返すリスク" },
+    discipline: { strong: "決めたルールを確実に守り抜く自律性",             perf: "継続性が求められる基盤プロセスの安定した維持能力",         weak: "ルールや手順を厳格に遵守することへの苦手さ",           risk: "気分や状況によってパフォーマンスが変動しやすい傾向",     over: "ルール遵守を目的化し柔軟な対応が遅れるリスク" },
+    curiosity:  { strong: "事象のメカニズムに対する深い知的好奇心",         perf: "専門領域を深掘りし新しい知見をもたらす能力",               weak: "新しい知見に対する探究心の弱さ",                       risk: "既存の知識にとどまり技術的アップデートが遅れる傾向",     over: "実務に直結しない探究に時間を費やしすぎるリスク" },
+    empathy:    { strong: "言語化されない他者の感情を汲み取る力",           perf: "潜在ニーズの発見やチーム内の不協和音の早期解決能力",       weak: "他者の感情的背景を推察することへの苦手さ",             risk: "相手の意図を汲み取れずミスコミュニケーションを誘発する傾向", over: "他者に過剰に同調し厳しい判断ができなくなるリスク" },
+    assertive:  { strong: "対立を恐れず自分の主張を通す交渉力",             perf: "利害が対立する局面で自組織の利益を守る能力",               weak: "困難な局面で主張・交渉することへの苦手さ",             risk: "相手の勢いに押され不本意な条件で妥協してしまう傾向",     over: "自己主張が強すぎ相手を論破して関係を壊すリスク" },
+    stability:  { strong: "プレッシャー下でも揺るがない強靭なメンタル",     perf: "予期せぬトラブル時に冷静なリカバリーを指揮する能力",       weak: "ストレス下で感情をコントロールすることへの苦手さ",     risk: "不測の事態で感情的になり周囲に不安を伝染させる傾向",     over: "感情の起伏がなさすぎ危機感がないと誤解されるリスク" },
+    motivate:   { strong: "他者の成長と活躍に喜びを見出す支援力",           perf: "メンバーの強みを引き出しモチベーションを高める能力",       weak: "他者への関心や動機付けの弱さ",                         risk: "個人の成果に集中しチームの育成が後回しになる傾向",       over: "他者に過保護に介入しすぎ自立機会を奪うリスク" }
+};
+
+// ============================================================
+// 事前計算：カテゴリ・パラメーター別 真の最大値
+// （questionDefs を使用。実行時回答とは独立した静的計算）
+// ============================================================
+
+/**
+ * カテゴリ別「真の最大獲得可能スコア」の算出。
+ * SJT では各設問で「そのカテゴリのウェイト加重和が最大になる選択肢1つ」のみを
+ * 加算することで、トレードオフを正確に反映したカンスト値を得る。
+ */
+function calcCategoryMaxScores() {
+    const maxScores = {};
+    categoryWeights.forEach(cat => {
+        let catMax = 0;
+        questionDefs.forEach(q => {
+            if (q.type === 'lie') return;
+            if (q.type === 'normal' || q.type === 'reverse') {
+                catMax += 4 * (cat.weights[q.param] || 0);
+            } else if (q.type === 'sjt') {
+                // 各選択肢の「このカテゴリへの加重寄与」を計算し最大値を採用
+                let bestOptScore = 0;
+                q.options.forEach(opt => {
+                    let optScore = 0;
+                    for (const k in opt.v) optScore += opt.v[k] * (cat.weights[k] || 0);
+                    if (optScore > bestOptScore) bestOptScore = optScore;
+                });
+                catMax += bestOptScore;
+            }
+        });
+        maxScores[cat.id] = catMax;
+    });
+    return maxScores;
+}
+
+/**
+ * パラメーター別「真の最大獲得可能スコア」の算出。
+ * [修正④] SJT は「各設問でそのパラメーターへの加点が最大の選択肢1つ」を採用。
+ * これにより paramMaxScores の過大計算（旧バグ）を解消し、
+ * レーダーチャート・棒グラフのスケールを categoryMaxScores と統一する。
+ * ※ 複数パラメーターへ同時加点する選択肢が存在するため、この方式でも
+ *    「全パラメーターを同時に最大化することは不可能」という制約は残る。
+ *    ただしカテゴリスコアの正規化は categoryMaxScores 側で担保されているため、
+ *    表示用のレーダー/棒グラフ用途では実態に即した上限として十分機能する。
+ */
+function calcParamMaxScores() {
+    const maxScores = {};
+    PARAMS.forEach(p => maxScores[p] = 0);
+    questionDefs.forEach(q => {
+        if (q.type === 'lie') return;
+        if (q.type === 'normal' || q.type === 'reverse') {
+            maxScores[q.param] += 4;
+        } else if (q.type === 'sjt') {
+            // パラメーターごとに「最も多く加点する選択肢」を個別に採用
+            const bestPerParam = {};
+            q.options.forEach(opt => {
+                for (const k in opt.v) {
+                    if (!bestPerParam[k] || opt.v[k] > bestPerParam[k]) {
+                        bestPerParam[k] = opt.v[k];
+                    }
+                }
+            });
+            for (const k in bestPerParam) maxScores[k] += bestPerParam[k];
+        }
+    });
+    return maxScores;
+}
+
+// ページ読み込み時に一度だけ計算（回答内容に依存しない静的値）
+const CATEGORY_MAX_SCORES = calcCategoryMaxScores();
+const PARAM_MAX_SCORES    = calcParamMaxScores();
+
+// ============================================================
+// コメント生成
+// ============================================================
+
+/**
+ * [修正③] ランクと講評の乖離を解消。
+ * componentScores の絶対値ではなく、カテゴリランクに応じた
+ * 閾値オフセットを適用することで判定基準をランクに連動させる。
+ *
+ * ランク別の「強み」判定閾値：
+ *   S/A → 65点以上を強み（高水準回答者向けに閾値を引き上げ）
+ *   B   → 50点以上を強み
+ *   C   → 35点以上を強み（低水準でも相対的強みを拾う）
+ */
+function generateExpertCommentQuantized(catName, rank, componentScores) {
+    const thresholds = {
+        S: { strong: 65, neutral: 45, caution: 25 },
+        A: { strong: 65, neutral: 45, caution: 25 },
+        B: { strong: 50, neutral: 35, caution: 20 },
+        C: { strong: 35, neutral: 25, caution: 10 }
+    };
+    const th = thresholds[rank] || thresholds['C'];
+
+    const strengths = [], neutrals = [], cautions = [], weaknesses = [], overs = [];
+    const sortedEntries = Object.entries(componentScores).sort((a, b) => b[1] - a[1]);
+
+    for (const [param, score] of sortedEntries) {
+        const dict  = PARAM_EXPERT_DICT[param];
+        const label = PARAM_LABELS[param];
+        if (score >= th.strong) {
+            strengths.push(`「${label}」による${dict.strong}`);
+            overs.push(dict.over);
+        } else if (score >= th.neutral) {
+            neutrals.push(`「${label}」を活かした${dict.perf}`);
+        } else if (score >= th.caution) {
+            cautions.push(`「${label}」の観点での${dict.risk}`);
+        } else {
+            weaknesses.push(`「${label}」における${dict.weak}`);
+        }
+    }
+
+    let logicText = '', perfText = '', riskText = '';
+
+    if (rank === 'S' || rank === 'A') {
+        const topLogic = strengths.slice(0, 2);
+        logicText = topLogic.length > 0
+            ? `${topLogic.join("や、")}${strengths.length > 2 ? "など" : ""}が極めて高く、この領域における高い適性のコアとなっています。`
+            : "構成要素全般が非常に高い水準で安定しています。";
+        const perfElements = [...strengths, ...neutrals].slice(0, 2);
+        perfText = perfElements.length > 0
+            ? `${perfElements.join("や")}${strengths.length + neutrals.length > 2 ? "といった強み" : ""}を組み合わせることで、実務の現場で即戦力となる存在感を発揮し、組織の生産性を牽引することが期待されます。`
+            : "実務の現場で即戦力となる存在感を発揮し、組織の生産性を牽引することが期待されます。";
+        const riskFactors = [...cautions, ...weaknesses].slice(0, 2);
+        riskText = riskFactors.length > 0
+            ? `一方で、${riskFactors.join("や")}${cautions.length + weaknesses.length > 2 ? "など" : ""}には注意が必要です。`
+            : overs.length > 0
+                ? `また、強みが過剰に発揮された際の「${overs[0]}」に自覚的になることで、より隙のないパフォーマンスが実現します。`
+                : "現状の強みを活かし、さらなる高みを目指してください。";
+    } else if (rank === 'B') {
+        const topLogic = [...strengths, ...neutrals].slice(0, 2);
+        logicText = topLogic.length > 0
+            ? `${topLogic.join("や、")}${strengths.length + neutrals.length > 2 ? "など" : ""}が強みとして機能していますが、構成要素間にバラつきがあり、${catName}の適性は標準的な水準にとどまっています。`
+            : `構成要素間にバラつきがあり、${catName}の適性は標準的な水準にとどまっています。`;
+        const topPerf = [...strengths, ...neutrals];
+        if (topPerf.length > 0) {
+            const match = topPerf[0].match(/「.+?」/);
+            const paramName = match ? match[0] : "現在の強み";
+            perfText = `まずは${paramName}といった現在の強みを活かしやすい部分的なタスクからアサインし、成功体験を積み重ねながら適応領域を広げていくアプローチが有効です。`;
+        } else {
+            perfText = "まずは現在の強みを活かしやすい部分的なタスクからアサインし、成功体験を積み重ねながら適応領域を広げていくアプローチが有効です。";
+        }
+        const topRisk = [...cautions, ...weaknesses].slice(0, 2);
+        riskText = topRisk.length > 0
+            ? `特に${topRisk.join("や")}${cautions.length + weaknesses.length > 2 ? "など" : ""}が課題となりやすいため、意識的な自己研鑽を行うか、得意なメンバーとペアを組むなどの補完戦略が必要です。`
+            : "各要素の底上げを図ることで、さらなる適性の向上が見込めます。";
+    } else {
+        const topWeak = [...weaknesses, ...cautions].slice(0, 2);
+        logicText = `${catName}に要求される複数の要素が基準値を下回っており、特に${topWeak.length > 0 ? topWeak.join("や") : "一部の要素"}がボトルネックとなっています。現在の特性とはフィットしづらい領域です。`;
+        perfText = "この領域の主担当として独力で成果を出すには相当の認知的負荷がかかるため、マニュアル化された定型業務のサポートや、本人の強みが活きる別領域への配置転換を検討すべきです。";
+        riskText = topWeak.length > 0
+            ? `無理にこの領域のタスクをアサインすると、${topWeak.join("や")}${weaknesses.length + cautions.length > 2 ? "など" : ""}といった課題が顕在化し、モチベーションの低下を招きやすいため、システムによる自動化や得意なメンバーへのタスク切り出しを推奨します。`
+            : "無理にこの領域のタスクをアサインすると、モチベーションの低下を招きやすいため、システムによる自動化や、チーム内でのタスクの切り出しによる回避を推奨します。";
+    }
+    return { logic: logicText, perf: perfText, risk: riskText };
+}
+
+// ============================================================
+// レーダーチャート
+// ============================================================
+function createRadarChartSVG(scoresObj) {
+    const size = 400, cx = size / 2, cy = size / 2, r = 130;
+    const numParams = PARAMS.length;
+    let svg = `<svg width="100%" height="100%" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">`;
+
+    for (let level = 1; level <= 5; level++) {
+        const radius = r * (level / 5);
+        const points = PARAMS.map((_, i) => {
+            const angle = (i * Math.PI * 2) / numParams - Math.PI / 2;
+            return `${cx + radius * Math.cos(angle)},${cy + radius * Math.sin(angle)}`;
+        }).join(" ");
+        svg += `<polygon points="${points}" fill="none" stroke="#e0e0e0" stroke-width="1"/>`;
+    }
+
+    PARAMS.forEach((param, i) => {
+        const angle = (i * Math.PI * 2) / numParams - Math.PI / 2;
+        svg += `<line x1="${cx}" y1="${cy}" x2="${cx + r * Math.cos(angle)}" y2="${cy + r * Math.sin(angle)}" stroke="#e0e0e0" stroke-width="1"/>`;
+        const labelR = r + 24;
+        const lx = cx + labelR * Math.cos(angle);
+        const ly = cy + labelR * Math.sin(angle) + 4;
+        const anchor = Math.cos(angle) > 0.1 ? "start" : Math.cos(angle) < -0.1 ? "end" : "middle";
+        svg += `<text x="${lx}" y="${ly}" font-size="11" font-weight="bold" fill="#666" text-anchor="${anchor}">${PARAM_LABELS[param]}</text>`;
+    });
+
+    const scorePoints = PARAMS.map((param, i) => {
+        const angle  = (i * Math.PI * 2) / numParams - Math.PI / 2;
+        const val    = Math.max(0, Math.min(100, scoresObj[param] || 0)) / 100;
+        const radius = r * val;
+        return `${cx + radius * Math.cos(angle)},${cy + radius * Math.sin(angle)}`;
+    }).join(" ");
+    svg += `<polygon points="${scorePoints}" fill="rgba(52,152,219,0.4)" stroke="#3498db" stroke-width="2"/>`;
+
+    PARAMS.forEach((param, i) => {
+        const angle  = (i * Math.PI * 2) / numParams - Math.PI / 2;
+        const val    = Math.max(0, Math.min(100, scoresObj[param] || 0)) / 100;
+        const radius = r * val;
+        svg += `<circle cx="${cx + radius * Math.cos(angle)}" cy="${cy + radius * Math.sin(angle)}" r="3" fill="#2c3e50"/>`;
+    });
+
+    return svg + `</svg>`;
+}
+
+// ============================================================
+// Top3 理由生成
+// ============================================================
+function generateTop3Reason(catName, componentScores) {
+    const sorted = Object.entries(componentScores).sort((a, b) => b[1] - a[1]);
+    const [top1, top2] = sorted;
+    const dict1 = PARAM_EXPERT_DICT[top1[0]];
+
+    let text = `この領域で最も重要となる構成要素において高い適性を示しています。特に「${PARAM_LABELS[top1[0]]}」(${Math.round(top1[1])}点)による${dict1.strong}が強力な武器となっており、`;
+    text += top2[1] >= 55
+        ? `さらに「${PARAM_LABELS[top2[0]]}」の特性がそれを効果的に補完しています。`
+        : `この強みを軸に実務を牽引することができます。`;
+    text += `実務において最も高いパフォーマンスと自然なモチベーションの維持が期待できる推奨領域です。`;
+    return text;
+}
+
+// ============================================================
+// 分析メイン
+// ============================================================
+function analyze() {
+    // 未回答チェック
+    let complete = true;
+    shuffledQuestions.forEach(q => {
+        if (!document.querySelector(`input[name="${q.id}"]:checked`)) complete = false;
+    });
+    if (!complete) { alert("未回答の項目があります。すべての設問に回答してください。"); return; }
+
+    // --- 集計 ---
+    let lieScore = 0;
+    const paramRawScores    = {};
+    const categoryUserScores = {};
+    PARAMS.forEach(p => paramRawScores[p] = 0);
+    categoryWeights.forEach(cat => categoryUserScores[cat.id] = 0);
+
+    shuffledQuestions.forEach(q => {
+        const sel = document.querySelector(`input[name="${q.id}"]:checked`);
+
+        // Lie Scale
+        if (q.type === 'lie') {
+            lieScore += parseInt(sel.value, 10);
+            return;
+        }
+
+        if (q.type === 'normal') {
+            const val = parseInt(sel.value, 10);
+            const raw = val - 1;
+            paramRawScores[q.param] += raw;
+            categoryWeights.forEach(cat => {
+                categoryUserScores[cat.id] += raw * (cat.weights[q.param] || 0);
+            });
+
+        } else if (q.type === 'reverse') {
+            const val = parseInt(sel.value, 10);
+            const raw = 5 - val;
+            paramRawScores[q.param] += raw;
+            categoryWeights.forEach(cat => {
+                categoryUserScores[cat.id] += raw * (cat.weights[q.param] || 0);
+            });
+
+        } else if (q.type === 'sjt') {
+            // [修正④] data-idx による型安全な参照 + 境界チェック
+            const idx = parseInt(sel.dataset.idx, 10);
+            if (isNaN(idx) || idx < 0 || idx >= q.options.length) return;
+            const opt = q.options[idx];
+            for (const k in opt.v) {
+                paramRawScores[k] += opt.v[k];
+                categoryWeights.forEach(cat => {
+                    categoryUserScores[cat.id] += opt.v[k] * (cat.weights[k] || 0);
+                });
+            }
+        }
+    });
+
+    // --- パラメーター正規化（0-100スケール） ---
+    const paramScores = {};
+    PARAMS.forEach(p => {
+        paramScores[p] = PARAM_MAX_SCORES[p] > 0
+            ? (paramRawScores[p] / PARAM_MAX_SCORES[p]) * 100
+            : 0;
+    });
+
+    // --- [修正②] Lie ペナルティは paramScores のみに適用し、
+    //     カテゴリスコアは categoryUserScores から独立して正規化する。
+    //     これにより「分子だけにペナルティ・分母はそのまま」という
+    //     非対称な圧縮が発生せず、ペナルティの効果量が直感的に一致する。
+    // --- Lie 判定（閾値: moderate≥14, strong≥17）
+    let lieLevel = 'none';
+    if      (lieScore >= 17) lieLevel = 'strong';
+    else if (lieScore >= 14) lieLevel = 'moderate';
+
+    const penaltyFactor = { none: 1.0, moderate: 0.94, strong: 0.88 }[lieLevel];
+
+    // paramScores へのペナルティ（レーダー・棒グラフ・講評用）
+    if (lieLevel !== 'none') {
+        for (const key in paramScores) {
+            if (LIE_SENSITIVE_PARAMS.has(key)) paramScores[key] *= penaltyFactor;
+        }
+    }
+
+    // --- 信頼性インジケーター更新 ---
+    document.querySelectorAll('.rel-signal').forEach(el => {
+        el.className = 'reliability-indicator rel-signal';
+        el.classList.add(
+            lieLevel === 'strong'   ? 'rel-red'   :
+            lieLevel === 'moderate' ? 'rel-yellow' : 'rel-green'
+        );
+    });
+
+    // --- ヘッダー情報 ---
+    const today   = new Date();
+    const dateStr = `Issue Date: ${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`;
+    const nameStr = document.getElementById('user-name').value.trim();
+    document.querySelectorAll('.print-date-display').forEach(el => el.innerText = dateStr);
+    document.querySelectorAll('.print-name-display').forEach(el => el.innerText = nameStr);
+
+    // --- カテゴリスコア算出・カード描画 ---
+    const grid = document.getElementById('report-grid');
+    grid.innerHTML = '';
+    const fragment = document.createDocumentFragment();
+    const categoryResults = [];
+
+    categoryWeights.forEach(cat => {
+        // カテゴリ総合スコア：真の最大値で正規化（0-100スケール）
+        let total = CATEGORY_MAX_SCORES[cat.id] > 0
+            ? (categoryUserScores[cat.id] / CATEGORY_MAX_SCORES[cat.id]) * 100
+            : 0;
+
+        // カテゴリ総合スコアへの Lie ペナルティ：
+        // 対象パラメーターのウェイト比率に応じてペナルティを按分適用
+        if (lieLevel !== 'none') {
+            let sensitiveWeightSum = 0;
+            for (const k in cat.weights) {
+                if (LIE_SENSITIVE_PARAMS.has(k)) sensitiveWeightSum += cat.weights[k];
+            }
+            // 按分係数：対象外パラメーターは影響ゼロ、対象パラメーターのみ縮退
+            const catPenalty = 1.0 - (1.0 - penaltyFactor) * sensitiveWeightSum;
+            total *= catPenalty;
+        }
+
+        // ランク判定（0-100スケール復帰後の本来の閾値）
+        let rank = 'C', cls = 'card-c', col = 'var(--c-color)';
+        if      (total >= 80) { rank = 'S'; cls = 'card-s'; col = 'var(--s-color)'; }
+        else if (total >= 68) { rank = 'A'; cls = 'card-a'; col = 'var(--a-color)'; }
+        else if (total >= 55) { rank = 'B'; cls = 'card-b'; col = 'var(--b-color)'; }
+
+        // 棒グラフ・講評用：Lie ペナルティ済み paramScores から取得
+        const catCompScores = {};
+        for (const k in cat.weights) catCompScores[k] = paramScores[k];
+
+        categoryResults.push({ name: cat.name, total, rank, componentScores: catCompScores });
+
+        // [修正③] ランク連動閾値でコメント生成
+        const comment = generateExpertCommentQuantized(cat.name, rank, catCompScores);
+
+        const barHTML = Object.entries(catCompScores).map(([p, s]) => {
+            const pct      = Math.max(0, Math.min(100, Math.round(s)));
+            const barColor = pct >= 80 ? '#3498db' : pct >= 55 ? '#27ae60' : '#e67e22';
+            return `<div class="score-bar-row">
+                <span class="score-bar-label">${PARAM_LABELS[p] ?? p}</span>
+                <div class="score-bar-track"><div class="score-bar-fill" style="width:${pct}%; background:${barColor};"></div></div>
+                <span class="score-bar-val">${pct}</span>
+            </div>`;
+        }).join('');
+
+        const card = document.createElement('div');
+        card.className = `report-card ${cls}`;
+        card.innerHTML = `
+            <div class="card-top">
+                <span class="cat-title">${cat.name}</span>
+                <span class="rank-tag" style="background:${col}; border:1px solid rgba(255,255,255,0.3);">${rank}</span>
+            </div>
+            <div class="sec-label">構成パラメータースコア</div>
+            <div class="score-bars">${barHTML}</div>
+            <div class="sec-label" style="margin-top:2px;">論理的根拠</div>
+            <div class="sec-body">${comment.logic}</div>
+            <div class="sec-label">実務パフォーマンス</div>
+            <div class="sec-body">${comment.perf}</div>
+            <div class="sec-label">リスクと成長の方向性</div>
+            <div class="sec-body">${comment.risk}</div>
+        `;
+        fragment.appendChild(card);
+    });
+    grid.appendChild(fragment);
+
+    // --- レーダーチャート ---
+    document.getElementById('radar-chart-area').innerHTML = createRadarChartSVG(paramScores);
+
+    // --- Top3 ---
+    categoryResults.sort((a, b) => b.total - a.total);
+    const top3Area = document.getElementById('top3-area');
+    top3Area.innerHTML = '';
+    for (let i = 0; i < 3; i++) {
+        const res     = categoryResults[i];
+        const rankNum = i + 1;
+        top3Area.innerHTML += `
+            <div class="top3-card rank-${rankNum}">
+                <div class="top3-rank-label">Rank ${rankNum}</div>
+                <div class="top3-header">
+                    <div class="top3-title">${res.name}</div>
+                    <div class="top3-score">総合スコア: <span>${Math.round(res.total)}</span></div>
+                </div>
+                <div class="top3-reason">${generateTop3Reason(res.name, res.componentScores)}</div>
+            </div>
+        `;
+    }
+
+    showScreen('result-screen');
+}
+
+function runAnalysis() { analyze(); }
+</script>
+</body>
+</html>
