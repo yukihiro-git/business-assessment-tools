@@ -74,6 +74,7 @@
         .rel-yellow { background-color: #f1c40f; }
         .rel-red { background-color: #e74c3c; }
 
+        /* --- 1ページ目のグリッド設定 --- */
         .report-grid { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr); gap: 12px; flex: 1; min-height: 0; }
         .report-card { border: 1px solid #ddd; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; overflow: hidden; position: relative; }
         .card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 2px solid rgba(0,0,0,0.05); padding-bottom: 5px; }
@@ -95,25 +96,30 @@
         .score-bar-fill { height: 100%; border-radius: 3px; transition: width 0.8s ease; }
         .score-bar-val { font-size: 9px; color: #888; width: 26px; flex-shrink: 0; }
 
-        .page-2-content { display: flex; gap: 20px; flex: 1; margin-top: 10px; }
+        /* --- 2ページ目のレイアウト --- */
+        .page-2-content { display: flex; gap: 20px; flex: 1; margin-top: 10px; min-height: 0; }
         .radar-container { flex: 1; background: #fafafa; border: 1px solid #ddd; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-direction: column; padding: 15px; }
         .radar-title { font-size: 14px; font-weight: bold; color: var(--primary); margin-bottom: 10px; text-align: center; }
         
-        .top3-container { flex: 1.5; display: flex; flex-direction: column; gap: 12px; justify-content: space-between; }
-        .top3-card { border: 1px solid #ddd; border-radius: 6px; padding: 15px; background: #fff; position: relative; overflow: hidden; }
-        .top3-rank-label { position: absolute; top: 0; left: 0; background: var(--accent); color: white; font-size: 11px; font-weight: bold; padding: 3px 12px; border-bottom-right-radius: 6px; }
-        .top3-card.rank-1 { border-left: 6px solid #f1c40f; }
-        .top3-card.rank-1 .top3-rank-label { background: #f1c40f; color: #333; }
-        .top3-card.rank-2 { border-left: 6px solid #bdc3c7; }
-        .top3-card.rank-2 .top3-rank-label { background: #bdc3c7; color: #333; }
-        .top3-card.rank-3 { border-left: 6px solid #cd7f32; }
-        .top3-card.rank-3 .top3-rank-label { background: #cd7f32; }
-        
-        .top3-header { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 10px; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
-        .top3-title { font-size: 18px; font-weight: bold; color: var(--primary); margin: 0; }
-        .top3-score { font-size: 16px; font-weight: bold; color: #666; }
-        .top3-score span { font-size: 24px; color: var(--accent); }
-        .top3-reason { font-size: 12px; line-height: 1.6; color: #333; }
+        /* 全6ランキング用のコンテナとカードスタイル */
+        .ranking-container { flex: 1.5; display: flex; flex-direction: column; gap: 10px; justify-content: space-between; min-height: 0; }
+        .rank-item { display: flex; border: 1px solid #ddd; border-radius: 6px; overflow: hidden; background: #fff; flex: 1; min-height: 0; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+        .rank-badge { width: 50px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 10px; flex-shrink: 0; height: 100%; }
+        .rank-badge span { font-size: 16px; }
+        .rank-content { padding: 8px 12px; flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
+        .rank-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+        .rank-name { font-size: 14px; font-weight: bold; color: var(--primary); }
+        .rank-score { font-size: 11px; font-weight: bold; color: #666; }
+        .rank-score span { font-size: 15px; color: var(--accent); }
+        .rank-desc { font-size: 11px; color: #555; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+        /* 上位3位はカラー、4〜6位はグレーにして視覚的に分ける */
+        .rank-1 { border-color: #f1c40f; } .rank-1 .rank-badge { background: #f1c40f; color: #333; } .rank-1 .rank-score span { color: #f39c12; }
+        .rank-2 { border-color: #bdc3c7; } .rank-2 .rank-badge { background: #bdc3c7; color: #333; } .rank-2 .rank-score span { color: #7f8c8d; }
+        .rank-3 { border-color: #cd7f32; } .rank-3 .rank-badge { background: #cd7f32; } .rank-3 .rank-score span { color: #d35400; }
+        .rank-4, .rank-5, .rank-6 { border-color: #eaeaea; background: #fafafa; }
+        .rank-4 .rank-badge, .rank-5 .rank-badge, .rank-6 .rank-badge { background: #dcdde1; color: #7f8c8d; }
+        .rank-4 .rank-name, .rank-5 .rank-name, .rank-6 .rank-name { color: #7f8c8d; }
 
         .btn { padding: 12px 40px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.2s; }
         .btn-start { background: var(--accent); color: white; }
@@ -126,12 +132,23 @@
             .no-print { display: none !important; }
             body, html { background: white; height: auto; margin: 0; padding: 0; }
             #result-screen { padding: 0; gap: 0; display: block !important; }
-            .print-page { width: 100%; height: 185mm; box-shadow: none; padding: 0; page-break-after: always; }
+            /* はみ出し防止のため overflow:hidden を追加 */
+            .print-page { width: 100%; height: 185mm; box-shadow: none; padding: 0; page-break-after: always; overflow: hidden; }
             .print-page:last-child { page-break-after: auto; }
             .report-grid { gap: 8px !important; }
             .report-card { border: 1px solid #eee; page-break-inside: avoid; }
             .sec-body { font-size: 10px; }
-            .reliability-indicator, .score-bar-fill, .top3-card, .top3-rank-label, .rank-tag { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            
+            /* ランキング用印刷スタイル微調整 */
+            .rank-item { border-width: 0.5px; }
+            .rank-content { padding: 4px 8px; }
+            .rank-name { font-size: 12px; }
+            .rank-score { font-size: 10px; }
+            .rank-score span { font-size: 12px; }
+            .rank-desc { font-size: 9.5px; line-height: 1.3; }
+            .rank-badge span { font-size: 14px; }
+            
+            .reliability-indicator, .score-bar-fill, .rank-badge, .rank-tag { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
     </style>
 </head>
@@ -195,14 +212,14 @@
             <span class="reliability-indicator rel-signal" title="Response Reliability Index"></span>
         </div>
         <div class="report-header">
-            <h2>総合プロファイル ＆ 推奨実務領域 Top 3 (2/2)</h2>
+            <h2>総合プロファイル ＆ 事業適性ランキング (2/2)</h2>
         </div>
         <div class="page-2-content">
             <div class="radar-container">
                 <div class="radar-title">行動特性 12パラメーター・バランス</div>
                 <div id="radar-chart-area"></div>
             </div>
-            <div class="top3-container" id="top3-area"></div>
+            <div class="ranking-container" id="ranking-area"></div>
         </div>
     </div>
 
@@ -251,9 +268,6 @@ const PARAMS = [
     "empathy","assertive","stability","motivate"
 ];
 
-// [修正①] questionDefs は純粋な定義のみ。id は実行時に付与しない。
-// シャッフル後のコピーオブジェクトに対してのみ id を付与することで
-// 元定義オブジェクトへの汚染（シャローコピー問題）を防ぐ。
 const questionDefs = [
     { param: 'abstract', type: 'normal',  text: 'バラバラに見える情報の中から、共通のパターンや法則性を見つけるのが得意だ。' },
     { param: 'abstract', type: 'reverse', text: '抽象的な議論よりも、目の前の具体的な作業をこなす方が好きだ。' },
@@ -357,20 +371,11 @@ function fisherYates(arr) {
     return res;
 }
 
-// [修正⑤] 端数チェック付き二段階層化シャッフル
 function stratifiedShuffle(questions) {
     const lie   = questions.filter(q => q.type === 'lie');
     const sjt   = fisherYates(questions.filter(q => q.type === 'sjt'));
     const scale = fisherYates(questions.filter(q => q.type === 'normal' || q.type === 'reverse'));
     const BLOCK_COUNT = 4;
-
-    // 端数チェック（問題構成を変更した場合の無言バグを防止）
-    if (sjt.length % BLOCK_COUNT !== 0 || scale.length % BLOCK_COUNT !== 0 || lie.length !== BLOCK_COUNT) {
-        console.warn(
-            `[stratifiedShuffle] 問題数がブロック数(${BLOCK_COUNT})で割り切れません。` +
-            ` SJT:${sjt.length}, Scale:${scale.length}, Lie:${lie.length}`
-        );
-    }
 
     const blocks = Array.from({ length: BLOCK_COUNT }, () => []);
     sjt.forEach((q, i)   => blocks[i % BLOCK_COUNT].push(q));
@@ -380,7 +385,6 @@ function stratifiedShuffle(questions) {
     return blocks.flatMap(b => fisherYates(b));
 }
 
-// [修正①] シャッフル後のコピーにのみ id を付与（questionDefs 本体を汚染しない）
 const shuffledQuestions = stratifiedShuffle(questionDefs).map((q, idx) => ({
     ...q,
     options: q.options ? q.options.map(o => ({ ...o })) : undefined,
@@ -398,7 +402,6 @@ shuffledQuestions.forEach((q, index) => {
     if (q.type === 'sjt') {
         html += `<div class="options-sjt">`;
         q.options.forEach((opt, j) => {
-            // [修正④] value ではなく data-idx で管理（型安全な参照）
             html += `<label><input type="radio" name="${q.id}" data-idx="${j}"> ${opt.text}</label>`;
         });
         html += `</div>`;
@@ -454,14 +457,7 @@ const PARAM_EXPERT_DICT = {
 
 // ============================================================
 // 事前計算：カテゴリ・パラメーター別 真の最大値
-// （questionDefs を使用。実行時回答とは独立した静的計算）
 // ============================================================
-
-/**
- * カテゴリ別「真の最大獲得可能スコア」の算出。
- * SJT では各設問で「そのカテゴリのウェイト加重和が最大になる選択肢1つ」のみを
- * 加算することで、トレードオフを正確に反映したカンスト値を得る。
- */
 function calcCategoryMaxScores() {
     const maxScores = {};
     categoryWeights.forEach(cat => {
@@ -471,7 +467,6 @@ function calcCategoryMaxScores() {
             if (q.type === 'normal' || q.type === 'reverse') {
                 catMax += 4 * (cat.weights[q.param] || 0);
             } else if (q.type === 'sjt') {
-                // 各選択肢の「このカテゴリへの加重寄与」を計算し最大値を採用
                 let bestOptScore = 0;
                 q.options.forEach(opt => {
                     let optScore = 0;
@@ -486,16 +481,6 @@ function calcCategoryMaxScores() {
     return maxScores;
 }
 
-/**
- * パラメーター別「真の最大獲得可能スコア」の算出。
- * [修正④] SJT は「各設問でそのパラメーターへの加点が最大の選択肢1つ」を採用。
- * これにより paramMaxScores の過大計算（旧バグ）を解消し、
- * レーダーチャート・棒グラフのスケールを categoryMaxScores と統一する。
- * ※ 複数パラメーターへ同時加点する選択肢が存在するため、この方式でも
- *    「全パラメーターを同時に最大化することは不可能」という制約は残る。
- *    ただしカテゴリスコアの正規化は categoryMaxScores 側で担保されているため、
- *    表示用のレーダー/棒グラフ用途では実態に即した上限として十分機能する。
- */
 function calcParamMaxScores() {
     const maxScores = {};
     PARAMS.forEach(p => maxScores[p] = 0);
@@ -504,7 +489,6 @@ function calcParamMaxScores() {
         if (q.type === 'normal' || q.type === 'reverse') {
             maxScores[q.param] += 4;
         } else if (q.type === 'sjt') {
-            // パラメーターごとに「最も多く加点する選択肢」を個別に採用
             const bestPerParam = {};
             q.options.forEach(opt => {
                 for (const k in opt.v) {
@@ -519,24 +503,12 @@ function calcParamMaxScores() {
     return maxScores;
 }
 
-// ページ読み込み時に一度だけ計算（回答内容に依存しない静的値）
 const CATEGORY_MAX_SCORES = calcCategoryMaxScores();
 const PARAM_MAX_SCORES    = calcParamMaxScores();
 
 // ============================================================
 // コメント生成
 // ============================================================
-
-/**
- * [修正③] ランクと講評の乖離を解消。
- * componentScores の絶対値ではなく、カテゴリランクに応じた
- * 閾値オフセットを適用することで判定基準をランクに連動させる。
- *
- * ランク別の「強み」判定閾値：
- *   S/A → 65点以上を強み（高水準回答者向けに閾値を引き上げ）
- *   B   → 50点以上を強み
- *   C   → 35点以上を強み（低水準でも相対的強みを拾う）
- */
 function generateExpertCommentQuantized(catName, rank, componentScores) {
     const thresholds = {
         S: { strong: 65, neutral: 45, caution: 25 },
@@ -655,33 +627,38 @@ function createRadarChartSVG(scoresObj) {
 }
 
 // ============================================================
-// Top3 理由生成
+// ランキング コメント生成 (全6順位対応)
 // ============================================================
-function generateTop3Reason(catName, componentScores) {
+function generateRankComment(rankNum, catName, componentScores) {
     const sorted = Object.entries(componentScores).sort((a, b) => b[1] - a[1]);
     const [top1, top2] = sorted;
-    const dict1 = PARAM_EXPERT_DICT[top1[0]];
+    const bottom1 = sorted[sorted.length - 1];
 
-    let text = `この領域で最も重要となる構成要素において高い適性を示しています。特に「${PARAM_LABELS[top1[0]]}」(${Math.round(top1[1])}点)による${dict1.strong}が強力な武器となっており、`;
-    text += top2[1] >= 55
-        ? `さらに「${PARAM_LABELS[top2[0]]}」の特性がそれを効果的に補完しています。`
-        : `この強みを軸に実務を牽引することができます。`;
-    text += `実務において最も高いパフォーマンスと自然なモチベーションの維持が期待できる推奨領域です。`;
-    return text;
+    if (rankNum === 1) {
+        return `「${PARAM_LABELS[top1[0]]}」が最大限に活きる最適領域です。高いモチベーションと圧倒的な成果が期待できます。`;
+    } else if (rankNum === 2) {
+        return `「${PARAM_LABELS[top1[0]]}」を軸に、優れたパフォーマンスを発揮できる推奨領域です。`;
+    } else if (rankNum === 3) {
+        return `一定の適性があります。強みである「${PARAM_LABELS[top1[0]]}」を意識的に活かすことで十分な貢献が可能です。`;
+    } else if (rankNum === 4) {
+        return `適性は標準的です。「${PARAM_LABELS[bottom1[0]]}」の課題を仕組みや他メンバーのサポートで補完すると安全です。`;
+    } else if (rankNum === 5) {
+        return `やや不向きな領域です。「${PARAM_LABELS[bottom1[0]]}」への負担を減らすチーム配置やタスクの切り出しを推奨します。`;
+    } else {
+        return `最も認知的負荷が高く、成果が出にくい領域です。「${PARAM_LABELS[bottom1[0]]}」の弱点に注意し、システム化等で回避してください。`;
+    }
 }
 
 // ============================================================
 // 分析メイン
 // ============================================================
 function analyze() {
-    // 未回答チェック
     let complete = true;
     shuffledQuestions.forEach(q => {
         if (!document.querySelector(`input[name="${q.id}"]:checked`)) complete = false;
     });
     if (!complete) { alert("未回答の項目があります。すべての設問に回答してください。"); return; }
 
-    // --- 集計 ---
     let lieScore = 0;
     const paramRawScores    = {};
     const categoryUserScores = {};
@@ -691,7 +668,6 @@ function analyze() {
     shuffledQuestions.forEach(q => {
         const sel = document.querySelector(`input[name="${q.id}"]:checked`);
 
-        // Lie Scale
         if (q.type === 'lie') {
             lieScore += parseInt(sel.value, 10);
             return;
@@ -704,7 +680,6 @@ function analyze() {
             categoryWeights.forEach(cat => {
                 categoryUserScores[cat.id] += raw * (cat.weights[q.param] || 0);
             });
-
         } else if (q.type === 'reverse') {
             const val = parseInt(sel.value, 10);
             const raw = 5 - val;
@@ -712,9 +687,7 @@ function analyze() {
             categoryWeights.forEach(cat => {
                 categoryUserScores[cat.id] += raw * (cat.weights[q.param] || 0);
             });
-
         } else if (q.type === 'sjt') {
-            // [修正④] data-idx による型安全な参照 + 境界チェック
             const idx = parseInt(sel.dataset.idx, 10);
             if (isNaN(idx) || idx < 0 || idx >= q.options.length) return;
             const opt = q.options[idx];
@@ -727,7 +700,6 @@ function analyze() {
         }
     });
 
-    // --- パラメーター正規化（0-100スケール） ---
     const paramScores = {};
     PARAMS.forEach(p => {
         paramScores[p] = PARAM_MAX_SCORES[p] > 0
@@ -735,25 +707,18 @@ function analyze() {
             : 0;
     });
 
-    // --- [修正②] Lie ペナルティは paramScores のみに適用し、
-    //     カテゴリスコアは categoryUserScores から独立して正規化する。
-    //     これにより「分子だけにペナルティ・分母はそのまま」という
-    //     非対称な圧縮が発生せず、ペナルティの効果量が直感的に一致する。
-    // --- Lie 判定（閾値: moderate≥14, strong≥17）
     let lieLevel = 'none';
     if      (lieScore >= 17) lieLevel = 'strong';
     else if (lieScore >= 14) lieLevel = 'moderate';
 
     const penaltyFactor = { none: 1.0, moderate: 0.94, strong: 0.88 }[lieLevel];
 
-    // paramScores へのペナルティ（レーダー・棒グラフ・講評用）
     if (lieLevel !== 'none') {
         for (const key in paramScores) {
             if (LIE_SENSITIVE_PARAMS.has(key)) paramScores[key] *= penaltyFactor;
         }
     }
 
-    // --- 信頼性インジケーター更新 ---
     document.querySelectorAll('.rel-signal').forEach(el => {
         el.className = 'reliability-indicator rel-signal';
         el.classList.add(
@@ -762,50 +727,41 @@ function analyze() {
         );
     });
 
-    // --- ヘッダー情報 ---
     const today   = new Date();
     const dateStr = `Issue Date: ${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`;
     const nameStr = document.getElementById('user-name').value.trim();
     document.querySelectorAll('.print-date-display').forEach(el => el.innerText = dateStr);
     document.querySelectorAll('.print-name-display').forEach(el => el.innerText = nameStr);
 
-    // --- カテゴリスコア算出・カード描画 ---
     const grid = document.getElementById('report-grid');
     grid.innerHTML = '';
     const fragment = document.createDocumentFragment();
     const categoryResults = [];
 
     categoryWeights.forEach(cat => {
-        // カテゴリ総合スコア：真の最大値で正規化（0-100スケール）
         let total = CATEGORY_MAX_SCORES[cat.id] > 0
             ? (categoryUserScores[cat.id] / CATEGORY_MAX_SCORES[cat.id]) * 100
             : 0;
 
-        // カテゴリ総合スコアへの Lie ペナルティ：
-        // 対象パラメーターのウェイト比率に応じてペナルティを按分適用
         if (lieLevel !== 'none') {
             let sensitiveWeightSum = 0;
             for (const k in cat.weights) {
                 if (LIE_SENSITIVE_PARAMS.has(k)) sensitiveWeightSum += cat.weights[k];
             }
-            // 按分係数：対象外パラメーターは影響ゼロ、対象パラメーターのみ縮退
             const catPenalty = 1.0 - (1.0 - penaltyFactor) * sensitiveWeightSum;
             total *= catPenalty;
         }
 
-        // ランク判定（0-100スケール復帰後の本来の閾値）
         let rank = 'C', cls = 'card-c', col = 'var(--c-color)';
         if      (total >= 80) { rank = 'S'; cls = 'card-s'; col = 'var(--s-color)'; }
         else if (total >= 68) { rank = 'A'; cls = 'card-a'; col = 'var(--a-color)'; }
         else if (total >= 55) { rank = 'B'; cls = 'card-b'; col = 'var(--b-color)'; }
 
-        // 棒グラフ・講評用：Lie ペナルティ済み paramScores から取得
         const catCompScores = {};
         for (const k in cat.weights) catCompScores[k] = paramScores[k];
 
         categoryResults.push({ name: cat.name, total, rank, componentScores: catCompScores });
 
-        // [修正③] ランク連動閾値でコメント生成
         const comment = generateExpertCommentQuantized(cat.name, rank, catCompScores);
 
         const barHTML = Object.entries(catCompScores).map(([p, s]) => {
@@ -838,24 +794,26 @@ function analyze() {
     });
     grid.appendChild(fragment);
 
-    // --- レーダーチャート ---
     document.getElementById('radar-chart-area').innerHTML = createRadarChartSVG(paramScores);
 
-    // --- Top3 ---
+    // --- 全6カテゴリランキング ---
     categoryResults.sort((a, b) => b.total - a.total);
-    const top3Area = document.getElementById('top3-area');
-    top3Area.innerHTML = '';
-    for (let i = 0; i < 3; i++) {
-        const res     = categoryResults[i];
+    const rankingArea = document.getElementById('ranking-area');
+    rankingArea.innerHTML = '';
+    
+    for (let i = 0; i < categoryResults.length; i++) {
+        const res = categoryResults[i];
         const rankNum = i + 1;
-        top3Area.innerHTML += `
-            <div class="top3-card rank-${rankNum}">
-                <div class="top3-rank-label">Rank ${rankNum}</div>
-                <div class="top3-header">
-                    <div class="top3-title">${res.name}</div>
-                    <div class="top3-score">総合スコア: <span>${Math.round(res.total)}</span></div>
+        rankingArea.innerHTML += `
+            <div class="rank-item rank-${rankNum}">
+                <div class="rank-badge"><div>Rank</div><span>${rankNum}</span></div>
+                <div class="rank-content">
+                    <div class="rank-header">
+                        <div class="rank-name">${res.name}</div>
+                        <div class="rank-score">Score: <span>${Math.round(res.total)}</span></div>
+                    </div>
+                    <div class="rank-desc">${generateRankComment(rankNum, res.name, res.componentScores)}</div>
                 </div>
-                <div class="top3-reason">${generateTop3Reason(res.name, res.componentScores)}</div>
             </div>
         `;
     }
